@@ -12,6 +12,7 @@ from .api.health import router as health_router
 from .api.ingest import router as ingest_router
 from .api.predict import router as predict_router
 from .api.simulate import router as simulate_router
+from .api.stream import router as stream_router
 
 
 @asynccontextmanager
@@ -48,3 +49,4 @@ app.include_router(health_router, prefix="/api", tags=["health"])
 app.include_router(ingest_router, prefix="/api/ingest", tags=["ingestion"])
 app.include_router(predict_router, prefix="/api/predict", tags=["prediction"])
 app.include_router(simulate_router, prefix="/api/simulate", tags=["simulation"])
+app.include_router(stream_router, prefix="/api/stream", tags=["real-time"])
