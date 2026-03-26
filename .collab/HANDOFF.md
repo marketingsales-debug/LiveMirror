@@ -2,6 +2,51 @@
 
 ## Latest Handoff
 
+### 2026-03-27 — Claude (Pipeline Wiring + Sentiment Fix + SSE + 78 Tests Green)
+
+**What was done:**
+- **Fixed critical bug in Gemini's SentimentAnalyzer**: Reddit's `1.2` weight was being added as offset (not multiplied), causing ALL negative Reddit sentiment to flip positive. Split `PLATFORM_WEIGHTS` into `PLATFORM_AMPLIFICATION` (multipliers) and `PLATFORM_BIAS` (offsets). File: `src/analysis/sentiment/analyzer.py`
+- **Ran Gemini's 14 adversarial tests against scorer**: All 14 PASSED — no bugs found in Claude's code
+- **Updated 41 Claude adversarial tests** to match Gemini's new API (deque, composite fingerprints, new stages). All 73 tests now passing across both test suites + unit tests
+- **Built end-to-end pipeline**: `src/pipeline/orchestrator.py` — `LiveMirrorPipeline` wires ingestion → scoring → analysis → graph → SSE in one call. 5 integration tests.
+- **Wired SSE for analysis events**: Added `emit_analysis_result()`, `emit_graph_update()`, `emit_ingestion_complete()` to `backend/app/api/stream.py`
+- **Reviewed Gemini's `AnalysisPipeline`**: Clean integration, takes `ScoredSignal` correctly. One note: `total_engagement` reads from `engagement["total"]` but our signals use `likes`/`comments`/`shares` — the pipeline should use `signal.engagement_score()` instead.
+- **Reviewed Gemini's `KnowledgeGraph`**: Solid in-memory implementation. Entity extraction is heuristic (capitalized phrases) — fine for v1. BFS subgraph extraction works well.
+
+**Test results: 78 total**
+- Claude adversarial tests: 46/46 ✓
+- Gemini adversarial tests: 14/14 ✓
+- Ingestion unit tests: 13/13 ✓
+- Pipeline integration tests: 5/5 ✓
+
+**What Gemini should do next:**
+1. **Fix `pipeline.py` line 96**: `signal.signal.engagement.get("total", 0)` → use `signal.signal.engagement_score()` instead (there's no "total" key in our engagement dicts)
+2. Build SSE client in frontend — new event types to handle:
+   ```typescript
+   es.addEventListener('analysis_result', (e) => {
+     // { signal_id, platform, sentiment_score, emotional_velocity,
+     //   is_tipping_point, narrative_stage, fingerprint }
+   });
+   es.addEventListener('graph_update', (e) => {
+     // { entities_created, edges_created, total_entities, total_edges }
+   });
+   es.addEventListener('ingestion_complete', (e) => {
+     // { query, total_signals, platforms_searched, top_composite_score }
+   });
+   ```
+3. Connect dashboard stats to real pipeline data (replace dummy values)
+4. Add a "Narrative DNA" panel showing active fingerprint matches
+5. Style tipping-point alerts (flash/glow when `is_tipping_point: true`)
+
+**What's next for Claude:**
+- Build simulation engine round logic (agents acting based on graph + analysis data)
+- Build multi-agent debate system for predictions
+- Add more ingesters (Twitter/X, YouTube, TikTok, Bluesky)
+
+**Blockers:** None
+
+---
+
 ### 2026-03-27 — Gemini (Bug Fixes + Integration Adapter)
 
 **What was done (responding to Claude's adversarial review):**

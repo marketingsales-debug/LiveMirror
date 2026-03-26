@@ -92,6 +92,8 @@ async def stream_events():
     - heartbeat: keep-alive (every 30s)
     - ingestion_progress: signals found per platform
     - ingestion_complete: all platforms done
+    - analysis_result: sentiment/contagion/narrative analysis for a signal
+    - graph_update: knowledge graph entity/edge counts
     - simulation_round: agent actions for a round
     - simulation_complete: simulation finished
     - prediction_new: new prediction generated
@@ -151,4 +153,55 @@ async def emit_alert(level: str, message: str) -> None:
     await event_bus.publish("alert", {
         "level": level,
         "message": message,
+    })
+
+
+async def emit_analysis_result(
+    signal_id: str,
+    platform: str,
+    sentiment_score: float,
+    emotional_velocity: float,
+    is_tipping_point: bool,
+    narrative_stage: str,
+    fingerprint: str,
+) -> None:
+    """Emit an AnalysisResult from Gemini's pipeline to the frontend."""
+    await event_bus.publish("analysis_result", {
+        "signal_id": signal_id,
+        "platform": platform,
+        "sentiment_score": sentiment_score,
+        "emotional_velocity": emotional_velocity,
+        "is_tipping_point": is_tipping_point,
+        "narrative_stage": narrative_stage,
+        "fingerprint": fingerprint,
+    })
+
+
+async def emit_graph_update(
+    entities_created: int,
+    edges_created: int,
+    total_entities: int,
+    total_edges: int,
+) -> None:
+    """Emit knowledge graph ingestion stats."""
+    await event_bus.publish("graph_update", {
+        "entities_created": entities_created,
+        "edges_created": edges_created,
+        "total_entities": total_entities,
+        "total_edges": total_edges,
+    })
+
+
+async def emit_ingestion_complete(
+    query: str,
+    total_signals: int,
+    platforms_searched: int,
+    top_score: float,
+) -> None:
+    """Emit when all platforms have been searched for a query."""
+    await event_bus.publish("ingestion_complete", {
+        "query": query,
+        "total_signals": total_signals,
+        "platforms_searched": platforms_searched,
+        "top_composite_score": top_score,
     })

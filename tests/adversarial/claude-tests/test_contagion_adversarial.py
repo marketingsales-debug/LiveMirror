@@ -1,10 +1,11 @@
 """Adversarial tests for Gemini's EmotionalContagionTracker.
 Author: Claude
 Purpose: Break the velocity calculator and tipping point detector.
+Updated: Adapted for Gemini's bugfix (deque, future-timestamp guard, UTC).
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from src.analysis.emotional.contagion import EmotionalContagionTracker
 
 
@@ -16,13 +17,14 @@ class TestContagionAdversarial:
 
     def test_single_entry_returns_zero(self):
         """One data point can't have velocity."""
-        self.tracker.record_sentiment("a", "reddit", 0.5, datetime.now())
+        now = datetime.now(tz=timezone.utc)
+        self.tracker.record_sentiment("a", "reddit", 0.5, now)
         vel = self.tracker.calculate_emotional_velocity()
         assert vel == 0.0
 
     def test_two_entries_minimum(self):
         """Two entries should produce non-zero velocity if scores differ."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         self.tracker.record_sentiment("a", "reddit", -1.0, now - timedelta(minutes=30))
         self.tracker.record_sentiment("b", "reddit", 1.0, now - timedelta(minutes=5))
         vel = self.tracker.calculate_emotional_velocity()
@@ -30,7 +32,7 @@ class TestContagionAdversarial:
 
     def test_all_same_score_zero_velocity(self):
         """Constant sentiment should produce zero velocity."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         for i in range(10):
             self.tracker.record_sentiment(
                 f"s{i}", "reddit", 0.5, now - timedelta(minutes=60 - i * 5)
@@ -40,9 +42,9 @@ class TestContagionAdversarial:
 
     def test_old_entries_excluded_from_window(self):
         """Entries outside the time window should be ignored."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         # Old entries: very positive
-        for i in range(100):
+        for i in range(10):
             self.tracker.record_sentiment(
                 f"old{i}", "reddit", 1.0, now - timedelta(hours=10)
             )
@@ -52,18 +54,18 @@ class TestContagionAdversarial:
                 f"new{i}", "reddit", -0.8, now - timedelta(minutes=i * 5)
             )
         vel = self.tracker.calculate_emotional_velocity(window_hours=1)
-        # Should reflect only the recent negative entries, not the old positive ones
+        # Should reflect only the recent entries
         assert abs(vel) < 0.5, f"Old entries leaked into velocity: {vel}"
 
-    # --- Memory growth ---
+    # --- Memory management ---
 
-    def test_unbounded_memory_growth(self):
-        """Tracker accumulates history without limit — OOM risk."""
-        now = datetime.now()
-        for i in range(100000):
-            self.tracker.record_sentiment(f"s{i}", "reddit", 0.0, now)
-        assert len(self.tracker.sentiment_history) == 100000
-        # BUG: No pruning mechanism. This will grow unbounded in production.
+    def test_bounded_memory_with_deque(self):
+        """Tracker should cap history at max_history."""
+        tracker = EmotionalContagionTracker(max_history=100)
+        now = datetime.now(tz=timezone.utc)
+        for i in range(200):
+            tracker.record_sentiment(f"s{i}", "reddit", 0.0, now - timedelta(seconds=i))
+        assert tracker.history_size <= 100
 
     # --- Tipping point ---
 
@@ -83,25 +85,20 @@ class TestContagionAdversarial:
 
     # --- Datetime edge cases ---
 
-    def test_future_timestamps(self):
-        """Future timestamps shouldn't break velocity calculation."""
-        now = datetime.now()
+    def test_future_timestamps_rejected(self):
+        """Future timestamps should be silently dropped."""
+        now = datetime.now(tz=timezone.utc)
         self.tracker.record_sentiment("a", "reddit", 0.5, now + timedelta(hours=10))
-        self.tracker.record_sentiment("b", "reddit", -0.5, now + timedelta(hours=11))
-        # These are in the future — calculate_emotional_velocity uses datetime.now()
-        # so window_hours=1 won't include them
-        vel = self.tracker.calculate_emotional_velocity(window_hours=1)
-        assert vel == 0.0, f"Future timestamps included in window: {vel}"
+        assert self.tracker.history_size == 0, "Future timestamps should be rejected"
 
     def test_identical_timestamps(self):
         """All entries at the exact same time should handle gracefully."""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         for i in range(10):
             self.tracker.record_sentiment(
-                f"s{i}", "reddit", float(i) / 10.0, now
+                f"s{i}", "reddit", float(i) / 10.0, now - timedelta(seconds=1)
             )
         vel = self.tracker.calculate_emotional_velocity()
-        # Should not crash, though velocity concept is meaningless here
         assert isinstance(vel, float)
 
     # --- Custom threshold ---
@@ -113,3 +110,12 @@ class TestContagionAdversarial:
 
         insensitive = EmotionalContagionTracker(tipping_point_threshold=0.9)
         assert insensitive.detect_tipping_point(0.5) is False
+
+    # --- Clear ---
+
+    def test_clear_resets_history(self):
+        """clear() should empty all history."""
+        now = datetime.now(tz=timezone.utc)
+        self.tracker.record_sentiment("a", "reddit", 0.5, now)
+        self.tracker.clear()
+        assert self.tracker.history_size == 0

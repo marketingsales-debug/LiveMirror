@@ -54,9 +54,13 @@ NEGATION_WORDS = {
     "barely", "scarcely",
 }
 
-# Platform-specific multipliers
-PLATFORM_WEIGHTS: Dict[Platform, float] = {
+# Platform amplification (multiplied to raw score — >1 amplifies, <1 dampens)
+PLATFORM_AMPLIFICATION: Dict[Platform, float] = {
     Platform.REDDIT:     1.2,   # Echo-chamber amplification
+}
+
+# Platform bias offset (added after normalization — shifts baseline sentiment)
+PLATFORM_BIAS: Dict[Platform, float] = {
     Platform.TWITTER:   -0.1,   # Skews negative from dunking culture
     Platform.TIKTOK:     0.05,  # Slightly positive by default
     Platform.BLUESKY:    0.0,
@@ -135,9 +139,13 @@ class SentimentAnalyzer:
         # Normalise by token count so long texts don't dwarf short ones
         normalised = raw_score / max(len(tokens), 1)
 
-        # Apply platform bias offset and clamp
-        bias = PLATFORM_WEIGHTS.get(platform, 0.0)
-        final = normalised + bias
+        # Apply platform amplification (multiplier — preserves sign)
+        amp = PLATFORM_AMPLIFICATION.get(platform, 1.0)
+        amplified = normalised * amp
+
+        # Apply platform bias offset (additive — shifts baseline)
+        bias = PLATFORM_BIAS.get(platform, 0.0)
+        final = amplified + bias
 
         return max(-1.0, min(1.0, final))
 
