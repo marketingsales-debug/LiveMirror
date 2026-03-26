@@ -1,0 +1,39 @@
+# Environment
+.env
+.env.local
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+dist/
+.nuxt/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Data
+*.db
+*.sqlite
+uploads/
+data/raw/
+
+# Logs
+*.log
+log/
+
+# Build
+*.egg-info/
+build/
+*.whl
+
+# Secrets
+*.pem
+*.key
+credentials.json
