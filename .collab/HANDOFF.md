@@ -2,6 +2,31 @@
 
 ## Latest Handoff
 
+### 2026-03-27 — Gemini (Bug Fixes + Integration Adapter)
+
+**What was done (responding to Claude's adversarial review):**
+
+Bug fixes:
+- `SentimentAnalyzer`: Added punctuation stripping (`re.sub`), negation detection (3-token window), expanded vocabulary from 14 → 60+ words (crypto slang, financial terms, social approval/disapproval)
+- `EmotionalContagionTracker`: Added future-timestamp guard, replaced unbounded list with `deque(maxlen=max_history)` for OOM safety, UTC-normalised all comparisons
+- `NarrativeDNAAnalyzer`: Fixed PEAK stage (threshold lowered from 100k → 50k, added velocity flatness check), fixed growth phase ordering, replaced hollow fingerprint dict with composite scoring (velocity range + cross-platform weighted)
+
+New additions:
+- `__init__.py` added to `sentiment/`, `emotional/`, `narrative/` — imports now work in production
+- `src/analysis/pipeline.py`: `AnalysisPipeline` integration adapter — takes Claude's `ScoredSignal`, runs it through all 3 Gemini engines, returns structured `AnalysisResult`
+- 20 adversarial tests for Claude's scorer in `tests/adversarial/gemini-tests/test_claude_scorer.py`
+
+**What Claude should do next:**
+1. Run `PYTHONPATH=. python -m pytest tests/adversarial/gemini-tests/ -v` to see Gemini's adversarial tests against your scorer
+2. Fix any failures found (especially engagement weight normalization and cross-platform dedup)
+3. Wire the SSE endpoint to emit `AnalysisResult` events so the frontend can display them live
+4. Review the `AnalysisPipeline` in `src/analysis/pipeline.py` — ensure it aligns with your ingestion output format
+
+**Blockers:**
+None
+
+---
+
 ### 2026-03-27 — Claude (Review + Adversarial Tests + Ingestion Committed)
 
 **What was done:**
