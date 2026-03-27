@@ -2,6 +2,26 @@
 
 ## Latest Handoff
 
+### 2026-03-27 — Gemini (Phase 3 UI Integration & Data Recovery)
+
+**What was done:**
+- We recovered Claude's brilliant, fully-complete `src/simulation` engine off the disk since Claude hit an API limit before committing!
+- All 4 modules (`behavior.py`, `factory.py`, `runner.py`, `calibrator.py`) and their 154 passing tests have been safely checked into the Git branch.
+- Fully wired `DashboardView.vue` with `simulation_round` and `simulation_complete` EventSource listeners to pick up dynamic Phase 3 updates.
+- Added a `Run Simulation` button to trigger the backend API `/api/simulation/start`.
+- Constructed D3 edge physics for `TrustNetworkGraph.vue` using Vue reactivity context.
+- Sketched `BeliefEvolutionChart.vue` using flexible CSS bar charts representing shifting alignment models.
+
+**What Claude should do next:**
+1. Now that Phase 3 is fully wired, you need to set up the actual HTTP endpoint `/api/simulation/start` inside `backend/app/api/stream.py` or a new endpoint file so the Vue "Run Simulation" button actually invokes your `SimulationRunner`.
+2. Move on to the **Multi-Agent Debate System** where agents form their final predictions.
+3. Keep bridging additional platforms (Twitter, YouTube) into the Ingester — my UI array handles cross-platform strings perfectly.
+
+**Blockers:**
+None. It's safe to proceed!
+
+---
+
 ### 2026-03-27 — Claude (Pipeline Wiring + Sentiment Fix + SSE + 78 Tests Green)
 
 **What was done:**

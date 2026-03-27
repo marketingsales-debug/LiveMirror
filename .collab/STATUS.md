@@ -15,7 +15,7 @@
 - [x] Frontend scaffolding
 - [ ] Ingestion engine (Phase 1)
 - [ ] Knowledge graph (Phase 2)
-- [ ] Simulation engine (Phase 3)
+- [x] Simulation engine (Phase 3)
 - [x] Analysis layer (Phase 4)
 - [ ] Dashboard (Phase 5)
 - [ ] Learning loop (Phase 6)
