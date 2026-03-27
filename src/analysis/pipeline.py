@@ -93,7 +93,7 @@ class AnalysisPipeline:
         tipping = self.contagion_tracker.detect_tipping_point(velocity)
 
         # --- 3. Narrative --------------------------------------------------
-        total_engagement = signal.signal.engagement.get("total", 0)
+        total_engagement = signal.signal.engagement_score()
         stage = self.narrative_analyzer.identify_stage(
             age_hours=age_hours,
             total_engagement=total_engagement,
