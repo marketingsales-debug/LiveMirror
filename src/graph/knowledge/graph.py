@@ -209,7 +209,7 @@ class KnowledgeGraph:
             "stats": {
                 "total_entities": len(all_entities),
                 "total_edges": len(all_edges),
-                "platforms": len({e.platforms_seen for e in all_entities}),
+                "platforms": len(set().union(*(e.platforms_seen for e in all_entities)) if all_entities else set()),
             },
         }
 
