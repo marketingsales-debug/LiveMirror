@@ -26,11 +26,21 @@ class SignalScorer:
         engagement_weight: float = 0.25,
         recency_weight: float = 0.20,
         cross_platform_weight: float = 0.20,
+        use_embeddings: bool = True,
     ):
         self.relevance_weight = relevance_weight
         self.engagement_weight = engagement_weight
         self.recency_weight = recency_weight
         self.cross_platform_weight = cross_platform_weight
+
+        # Try semantic embeddings, fall back to keyword overlap
+        self._semantic = None
+        if use_embeddings:
+            try:
+                from .embeddings import SemanticScorer
+                self._semantic = SemanticScorer()
+            except Exception:
+                pass
 
     def score_all(
         self,
@@ -55,12 +65,23 @@ class SignalScorer:
         query_lower = query.lower()
         query_words = set(query_lower.split())
 
+        # Batch compute semantic similarity if available
+        semantic_scores = {}
+        if self._semantic:
+            contents = [s.content for s in unique_signals]
+            scores = self._semantic.batch_similarity(query, contents)
+            for signal, score in zip(unique_signals, scores):
+                semantic_scores[id(signal)] = score
+
         for signal in unique_signals:
-            # Relevance: simple keyword overlap (upgrade to embeddings later)
-            content_lower = signal.content.lower()
-            content_words = set(content_lower.split())
-            overlap = len(query_words & content_words)
-            relevance = min(1.0, overlap / max(len(query_words), 1))
+            # Relevance: semantic embeddings (preferred) or keyword overlap (fallback)
+            if id(signal) in semantic_scores:
+                relevance = semantic_scores[id(signal)]
+            else:
+                content_lower = signal.content.lower()
+                content_words = set(content_lower.split())
+                overlap = len(query_words & content_words)
+                relevance = min(1.0, overlap / max(len(query_words), 1))
 
             # Engagement velocity: engagement per hour
             hours_old = self._hours_since(signal.timestamp)

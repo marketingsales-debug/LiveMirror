@@ -3,8 +3,10 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import ContagionGraph from '@livemirror/visualization/charts/ContagionGraph.vue';
 import TrustNetworkGraph from '@livemirror/visualization/charts/TrustNetworkGraph.vue';
 import BeliefEvolutionChart from '@livemirror/visualization/charts/BeliefEvolutionChart.vue';
+import DebatePanel from '../components/DebatePanel.vue';
 
 // Reactive State
+const topicInput = ref('AI Regulation');
 const totalSignals = ref(0);
 const totalEntities = ref(0);
 const latestQuery = ref('...');
@@ -26,20 +28,54 @@ interface Fingerprint {
 }
 
 const activeFingerprints = ref<Fingerprint[]>([]);
+const activePrediction = ref<any | null>(null);
 let es: EventSource | null = null;
+
+const runIngestion = async () => {
+  try {
+    await fetch('http://localhost:5001/api/ingest/start', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic: topicInput.value, platforms: ['reddit', 'hackernews', 'polymarket', 'web_search'] })
+    });
+  } catch(err) { console.error('Failed to start ingestion', err); }
+};
 
 const runSimulation = async () => {
   if (isSimulating.value) return;
   isSimulating.value = true;
   currentRound.value = 0;
+  activePrediction.value = null;
   
-  // Call backend to start
   try {
-    const res = await fetch('http://localhost:5001/api/simulation/start', { method: 'POST' });
+    const res = await fetch('http://localhost:5001/api/simulate/start', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic: topicInput.value, agent_count: 50, total_rounds: 72 })
+    });
     const data = await res.json();
     activeSimulationId.value = data.simulation_id;
   } catch(err) {
     console.error('Failed to start sim', err);
+    isSimulating.value = false;
+  }
+};
+
+const runPrediction = async () => {
+  if (isSimulating.value) return;
+  isSimulating.value = true;
+  currentRound.value = 0;
+  activePrediction.value = null;
+
+  try {
+    const res = await fetch('http://localhost:5001/api/predict/start', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic: topicInput.value, agent_count: 50, simulation_rounds: 72 })
+    });
+    const data = await res.json();
+  } catch(err) {
+    console.error('Failed to start prediction', err);
     isSimulating.value = false;
   }
 };
@@ -80,6 +116,18 @@ onMounted(() => {
         activeFingerprints.value.pop();
       }
     } catch(err) {}
+  }) as EventListener);
+
+  es.addEventListener('prediction_new', (async (e: Event) => {
+    try {
+      const msgEvent = e as MessageEvent;
+      const data = JSON.parse(msgEvent.data);
+      // Fetch full debate report
+      const res = await fetch(`http://localhost:5001/api/predict/report/${data.prediction_id}`);
+      if (res.ok) {
+        activePrediction.value = await res.json();
+      }
+    } catch(err) { console.error('Failed to load prediction report', err); }
   }) as EventListener);
 
   // Phase 3 Simulation Listeners
@@ -126,8 +174,11 @@ onUnmounted(() => {
         <a href="#">Alerts</a>
       </nav>
       <div class="actions">
-        <button class="primary-btn" @click="runSimulation" :disabled="isSimulating">
-          {{ isSimulating ? 'Simulating...' : 'Run Simulation' }}
+        <input v-model="topicInput" placeholder="Enter topic..." class="topic-input" />
+        <button class="secondary-btn" @click="runIngestion">Ingest Data</button>
+        <button class="secondary-btn" @click="runSimulation" :disabled="isSimulating">Run Simulation</button>
+        <button class="primary-btn" @click="runPrediction" :disabled="isSimulating">
+          {{ isSimulating ? 'Running...' : 'Full Prediction' }}
         </button>
       </div>
     </aside>
@@ -199,12 +250,47 @@ onUnmounted(() => {
             </div>
           </div>
         </section>
+        <section class="side-panel glass-panel">
+          <DebatePanel :report="activePrediction" />
+        </section>
       </div>
     </main>
   </div>
 </template>
 
 <style scoped>
+.topic-input {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(102, 252, 241, 0.3);
+  color: white;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  outline: none;
+  font-family: inherit;
+}
+.topic-input:focus {
+  border-color: var(--accent-color);
+}
+.secondary-btn {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-highlight);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+.secondary-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+}
+.secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .dashboard {
   display: grid;
   grid-template-columns: 260px 1fr;

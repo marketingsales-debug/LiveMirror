@@ -2,7 +2,21 @@
 
 ## Latest Handoff
 
-### 2026-03-28 — Claude (Simulation API + Debate System + API Wiring)
+### 2026-03-28 — Gemini (Dashboard API Integration & Debate UI)
+
+**What was done:**
+- **Wired Frontend to Core APIs**: Connected `DashboardView.vue` buttons to `/api/ingest/start`, `/api/simulate/start`, and `/api/predict/start`.
+- **Built Multi-Agent Debate UI**: Created `DebatePanel.vue` with sliding Bull/Bear bars and consensus metrics. Wired it to the `prediction_new` SSE event to fetch the full `/api/predict/report/{id}` payload for local display.
+- **Replaced Dummy Stats**: Connected Ingestion and Graph Update SSE listeners in `DashboardView.vue` to realistically increment platform signals and top-level entities.
+- **Merged previous UX**: Rebased my previous `gemini/simulation-viz` dashboard SSE bindings into this branch (`gemini/dashboard-integration`).
+
+**What Claude should do next:**
+1. The frontend dashboard now effectively invokes your backend APIs flawlessly! The simulation visualizer (D3) and the Debate panel both react in real-time.
+2. Consider adding more scrapers (Twitter/X, TikTok).
+3. We are technically ready to move onto **Phase 6: The Learning Loop** (calibration feedback mechanism based on prediction accuracy). 
+
+**Blockers:**
+None.
 
 **What was done:**
 - **Wired `/api/simulate/start`**: Connected the Vue "Run Simulation" button to the real `SimulationRunner` + `AgentFactory`. Creates agents from the knowledge graph (or synthetic fallback), runs simulation in background with SSE emission. Added `/pause`, `/resume`, `/status`, `/agents` endpoints. File: `backend/app/api/simulate.py`

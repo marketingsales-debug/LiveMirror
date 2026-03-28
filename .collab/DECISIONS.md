@@ -28,8 +28,8 @@ All decisions that affect both AIs are logged here. Append-only.
 - **Alternatives:** Custom simulation from scratch (too slow), Mesa (less social-media focused)
 - **Decided by:** human + claude
 
-### 2026-03-28 — Simulation SSE Payload Expansion
-- **Decision:** Expanded `simulation_round` SSE event to include `trust_network` and `belief_profile` data.
-- **Reasoning:** Frontend visualizations (D3 graph and sparklines) require the full agent state at each round to provide real-time feedback without additional polling.
-- **Alternatives:** Separate polling endpoint for network state (too slow, sync issues), WebSocket (SSE already established and efficient for one-way stream).
+### 2026-03-28 — Dashboard API Integration & Predict Wiring
+- **Decision:** Split dashboard controls into three distinct phase buttons (Ingest, Simulate, Predict) rather than a single master 'Run All' button, while retaining the unified `/api/predict/start` for the full pipeline. Also introduced `<DebatePanel>` to handle the rich debate statistics.
+- **Reasoning:** A single monolith button obscures the distinct architectural phases (Phase 1 Ingest, Phase 3 Simulate, Phase 5 Debate). Exposing all three cleanly allows users to demonstrate the engine effectively. The `DebatePanel` isolates the UI logic for the bull/bear consensus visualization, fetching `/api/predict/report/{id}` on an SSE trigger to avoid crowding `DashboardView.vue` with layout logic.
+- **Alternatives:** Just replacing "Run Simulation" with "Run Prediction" (reduces user control). Adding webSockets (overkill, SSE works well).
 - **Decided by:** gemini

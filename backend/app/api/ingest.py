@@ -20,6 +20,10 @@ from src.ingestion.platforms.reddit import RedditIngester
 from src.ingestion.platforms.hackernews import HackerNewsIngester
 from src.ingestion.platforms.polymarket import PolymarketIngester
 from src.ingestion.platforms.web_search import WebSearchIngester
+from src.ingestion.platforms.twitter import TwitterIngester
+from src.ingestion.platforms.youtube import YouTubeIngester
+from src.ingestion.platforms.bluesky import BlueskyIngester
+from src.ingestion.platforms.news import NewsIngester
 from src.shared.types import Platform
 
 router = APIRouter()
@@ -40,6 +44,10 @@ def _get_pipeline() -> LiveMirrorPipeline:
         _pipeline.register_ingester(HackerNewsIngester())
         _pipeline.register_ingester(PolymarketIngester())
         _pipeline.register_ingester(WebSearchIngester())
+        _pipeline.register_ingester(TwitterIngester())
+        _pipeline.register_ingester(YouTubeIngester())
+        _pipeline.register_ingester(BlueskyIngester())
+        _pipeline.register_ingester(NewsIngester())
     return _pipeline
 
 
