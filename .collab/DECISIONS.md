@@ -28,8 +28,8 @@ All decisions that affect both AIs are logged here. Append-only.
 - **Alternatives:** Custom simulation from scratch (too slow), Mesa (less social-media focused)
 - **Decided by:** human + claude
 
-### 2026-03-27 — AI Ownership Split
-- **Decision:** Claude owns backend/ingestion/graph/simulation/learning. Gemini owns analysis/visualization/dashboard/frontend.
-- **Reasoning:** Claude has stronger backend/architecture strengths. Gemini handles frontend/analysis. Clear boundaries prevent conflicts.
-- **Alternatives:** Random split (bad), feature-based split (too many merge conflicts)
-- **Decided by:** human + claude
+### 2026-03-28 — Simulation SSE Payload Expansion
+- **Decision:** Expanded `simulation_round` SSE event to include `trust_network` and `belief_profile` data.
+- **Reasoning:** Frontend visualizations (D3 graph and sparklines) require the full agent state at each round to provide real-time feedback without additional polling.
+- **Alternatives:** Separate polling endpoint for network state (too slow, sync issues), WebSocket (SSE already established and efficient for one-way stream).
+- **Decided by:** gemini

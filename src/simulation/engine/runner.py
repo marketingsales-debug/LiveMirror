@@ -51,6 +51,8 @@ class RoundSummary:
     avg_sentiment: float
     max_influence: float
     belief_shifts: int  # how many agents shifted this round
+    trust_network: Dict[str, Any] = field(default_factory=dict)  # nodes/links for D3
+    belief_profile: Dict[int, float] = field(default_factory=dict) # agent_id -> sentiment_bias
 
 
 @dataclass
@@ -233,6 +235,10 @@ class SimulationRunner:
         avg_sent = sum(sentiments) / len(sentiments) if sentiments else 0.0
         max_inf = max((d.influence_delta for d in round_decisions), default=0.0)
 
+        # Collect network and belief state for frontend
+        trust_network = self._serialize_trust_network(state.agents)
+        belief_profile = {a.agent_id: a.sentiment_bias for a in state.agents}
+
         return RoundSummary(
             round_num=round_num,
             active_agents=active_count,
@@ -240,7 +246,30 @@ class SimulationRunner:
             avg_sentiment=avg_sent,
             max_influence=max_inf,
             belief_shifts=belief_shifts,
+            trust_network=trust_network,
+            belief_profile=belief_profile,
         )
+
+    def _serialize_trust_network(self, agents: List[AgentPersona]) -> Dict[str, Any]:
+        """Convert agent trust networks into a D3-friendly nodes/links format."""
+        nodes = []
+        links = []
+        for agent in agents:
+            nodes.append({
+                "id": agent.agent_id,
+                "name": agent.name,
+                "role": agent.role,
+                "sentiment": agent.sentiment_bias,
+                "stance": agent.stance.value
+            })
+            for target_id, trust in agent.trust_network.items():
+                if trust > 0.1:  # Only send significant links to avoid overwhelming frontend
+                    links.append({
+                        "source": agent.agent_id,
+                        "target": target_id,
+                        "trust": trust
+                    })
+        return {"nodes": nodes, "links": links}
 
     async def _emit_round_sse(self, state: SimulationState, summary: RoundSummary) -> None:
         """Emit SSE event for a completed round."""
@@ -251,6 +280,8 @@ class SimulationRunner:
                 round_num=summary.round_num,
                 total_rounds=state.total_rounds,
                 actions=summary.actions_taken,
+                trust_network=summary.trust_network,
+                belief_profile=summary.belief_profile,
             )
         except ImportError:
             pass  # SSE not available (e.g., in tests)

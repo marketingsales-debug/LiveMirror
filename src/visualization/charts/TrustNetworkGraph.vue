@@ -9,10 +9,32 @@ const props = defineProps({
 
 const svgContainer = ref<HTMLElement | null>(null);
 
-// Since the Trust Network needs agent data, we will mock the force graph shape 
-// until we build the API endpoints to stream the dictionaries.
+const nodes = ref<any[]>([]);
+const links = ref<any[]>([]);
+let eventSource: EventSource | null = null;
+
+const setupSSE = () => {
+  eventSource = new EventSource('/api/events');
+  
+  eventSource.addEventListener('simulation_round', (event: any) => {
+    const message = JSON.parse(event.data);
+    const data = message.data;
+    
+    if (data.simulation_id === props.simulationId && data.trust_network) {
+      nodes.value = data.trust_network.nodes;
+      links.value = data.trust_network.links;
+      drawGraph();
+    }
+  });
+
+  eventSource.onerror = (err) => {
+    console.error("SSE Connection Failed:", err);
+    eventSource?.close();
+  };
+};
+
 const drawGraph = () => {
-  if (!svgContainer.value) return;
+  if (!svgContainer.value || nodes.value.length === 0) return;
   
   // Clear previous
   d3.select(svgContainer.value).selectAll('*').remove();
@@ -25,36 +47,24 @@ const drawGraph = () => {
     .attr('width', width)
     .attr('height', height);
 
-  // Example dummy data showing Stance coloring and Trust thickness
-  const nodes = [
-    { id: 1, name: 'Alpha', stance: 'supportive' },
-    { id: 2, name: 'Beta', stance: 'opposing' },
-    { id: 3, name: 'Gamma', stance: 'neutral' },
-    { id: 4, name: 'Delta', stance: 'supportive' },
-  ];
+  const graphNodes = JSON.parse(JSON.stringify(nodes.value));
+  const graphLinks = JSON.parse(JSON.stringify(links.value));
 
-  const links = [
-    { source: 1, target: 2, trust: 0.8 },
-    { source: 1, target: 3, trust: 0.2 },
-    { source: 4, target: 1, trust: 0.9 },
-    { source: 3, target: 2, trust: 0.5 },
-  ];
-
-  const simulation = d3.forceSimulation(nodes as any)
-    .force('link', d3.forceLink(links).id((d: any) => d.id).distance(100))
+  const simulation = d3.forceSimulation(graphNodes as any)
+    .force('link', d3.forceLink(graphLinks).id((d: any) => d.id).distance(100))
     .force('charge', d3.forceManyBody().strength(-300))
     .force('center', d3.forceCenter(width / 2, height / 2));
 
   const link = svg.append('g')
     .selectAll('line')
-    .data(links)
+    .data(graphLinks)
     .enter().append('line')
     .attr('stroke', 'rgba(102, 252, 241, 0.3)')
-    .attr('stroke-width', d => Math.max(1, d.trust * 5)); // Edge thickness = trust level
+    .attr('stroke-width', d => Math.max(1, d.trust * 5)); 
 
   const node = svg.append('g')
     .selectAll('circle')
-    .data(nodes)
+    .data(graphNodes)
     .enter().append('circle')
     .attr('r', 12)
     .attr('fill', d => {
@@ -89,11 +99,12 @@ const drawGraph = () => {
 };
 
 onMounted(() => {
-  drawGraph();
+  setupSSE();
   window.addEventListener('resize', drawGraph);
 });
 
 onUnmounted(() => {
+  eventSource?.close();
   window.removeEventListener('resize', drawGraph);
 });
 

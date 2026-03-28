@@ -8,13 +8,47 @@ const props = defineProps({
 
 // For an animated line chart capturing belief evolution,
 // we will stub out the CSS framework for it before integrating Chart.js/D3.
-const chartContainer = ref<HTMLElement | null>(null);
+const histories = ref<any[]>([]);
+let eventSource: EventSource | null = null;
 
-const histories = ref([
-  { id: 1, name: 'Agent 1', shifts: [-0.1, 0.2, 0.3, 0.5] },
-  { id: 2, name: 'Agent 2', shifts: [0.8, 0.7, 0.6, 0.6] },
-  { id: 3, name: 'Agent 3', shifts: [-0.6, -0.6, -0.7, -0.8] },
-]); // Mocked `belief_history` for CSS alignment.
+const setupSSE = () => {
+  eventSource = new EventSource('/api/events');
+  
+  eventSource.addEventListener('simulation_round', (event: any) => {
+    const message = JSON.parse(event.data);
+    const data = message.data;
+    
+    if (data.simulation_id === props.simulationId && data.belief_profile && data.trust_network) {
+      const nodes = data.trust_network.nodes;
+      const profile = data.belief_profile;
+      
+      nodes.forEach((node: any) => {
+        let agent = histories.value.find(h => h.id === node.id);
+        if (!agent) {
+          agent = { id: node.id, name: node.name, shifts: [] };
+          histories.value.push(agent);
+        }
+        // Store the bias as a percentage point for the sparkline
+        agent.shifts.push(profile[node.id]);
+        if (agent.shifts.length > 15) agent.shifts.shift();
+      });
+    }
+  });
+
+  eventSource.onerror = (err) => {
+    console.error("Belief SSE Connection Failed:", err);
+    eventSource?.close();
+  };
+};
+
+onMounted(() => {
+  setupSSE();
+});
+
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+  eventSource?.close();
+});
 
 </script>
 
@@ -29,9 +63,9 @@ const histories = ref([
           :key="i"
           class="bar"
           :style="{ 
-            height: Math.abs(shift) * 100 + '%',
-            backgroundColor: shift >= 0 ? 'var(--accent-color)' : '#ff4d4d',
-            left: (i * 20) + 'px'
+            height: ((shift + 1) / 2) * 100 + '%',
+            backgroundColor: shift >= 0 ? '#66fcf1' : '#ff4d4d',
+            left: (i * 15) + 'px'
           }"
         ></span>
       </div>

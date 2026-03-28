@@ -11,7 +11,7 @@ Streams live data to the dashboard:
 
 import json
 import asyncio
-from typing import AsyncGenerator, Dict, Any
+from typing import AsyncGenerator, Dict, Any, Optional
 from datetime import datetime
 
 from fastapi import APIRouter
@@ -131,13 +131,20 @@ async def emit_ingestion_progress(platform: str, count: int, total: int) -> None
 
 
 async def emit_simulation_round(
-    simulation_id: str, round_num: int, total_rounds: int, actions: int
+    simulation_id: str,
+    round_num: int,
+    total_rounds: int,
+    actions: int,
+    trust_network: Optional[Dict[str, Any]] = None,
+    belief_profile: Optional[Dict[int, float]] = None,
 ) -> None:
     await event_bus.publish("simulation_round", {
         "simulation_id": simulation_id,
         "round": round_num,
         "total_rounds": total_rounds,
         "actions_this_round": actions,
+        "trust_network": trust_network,
+        "belief_profile": belief_profile,
     })
 
 

@@ -22,7 +22,7 @@
 - [ ] Orchestrator (Phase 7)
 
 ### Active Locks
-None
+LOCKED BY: gemini — SSE integration for simulation engine — 2026-03-28T13:12:00
 
 ### Active Branches
 - `main` — empty, ready for initial commit
