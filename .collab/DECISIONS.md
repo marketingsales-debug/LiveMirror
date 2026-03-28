@@ -33,3 +33,9 @@ All decisions that affect both AIs are logged here. Append-only.
 - **Reasoning:** A single monolith button obscures the distinct architectural phases (Phase 1 Ingest, Phase 3 Simulate, Phase 5 Debate). Exposing all three cleanly allows users to demonstrate the engine effectively. The `DebatePanel` isolates the UI logic for the bull/bear consensus visualization, fetching `/api/predict/report/{id}` on an SSE trigger to avoid crowding `DashboardView.vue` with layout logic.
 - **Alternatives:** Just replacing "Run Simulation" with "Run Prediction" (reduces user control). Adding webSockets (overkill, SSE works well).
 - **Decided by:** gemini
+
+### 2026-03-28 — Dashboard Phase 6 Learning Loop UI
+- **Decision:** Integrated `PlatformHealth`, `LearningStatsPanel`, and `PredictionHistory` into `DashboardView.vue`. `PlatformHealth` placed in sidebar. History given a new full-width row at bottom.
+- **Reasoning:** Showcases the new orchestrator directly. PredictionHistory has inline validation actions `POST /api/predict/validate` to easily demonstrate the self-improving engine without leaving the dashboard.
+- **Alternatives:** A separate "/history" page. (Rejected: Dashboard should be a single pane of glass).
+- **Decided by:** gemini

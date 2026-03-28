@@ -4,6 +4,9 @@ import ContagionGraph from '@livemirror/visualization/charts/ContagionGraph.vue'
 import TrustNetworkGraph from '@livemirror/visualization/charts/TrustNetworkGraph.vue';
 import BeliefEvolutionChart from '@livemirror/visualization/charts/BeliefEvolutionChart.vue';
 import DebatePanel from '../components/DebatePanel.vue';
+import PlatformHealth from '../components/PlatformHealth.vue';
+import PredictionHistory from '../components/PredictionHistory.vue';
+import LearningStatsPanel from '../components/LearningStatsPanel.vue';
 
 // Reactive State
 const topicInput = ref('AI Regulation');
@@ -181,6 +184,7 @@ onUnmounted(() => {
           {{ isSimulating ? 'Running...' : 'Full Prediction' }}
         </button>
       </div>
+      <PlatformHealth />
     </aside>
     <main class="main-content">
       <header class="top-nav glass-panel">
@@ -250,9 +254,15 @@ onUnmounted(() => {
             </div>
           </div>
         </section>
+        <section class="learning-panel glass-panel">
+          <LearningStatsPanel />
+        </section>
         <section class="side-panel glass-panel">
           <DebatePanel :report="activePrediction" />
         </section>
+      </div>
+      <div class="history-row glass-panel">
+        <PredictionHistory />
       </div>
     </main>
   </div>
@@ -443,6 +453,16 @@ nav a:hover, nav a.active {
   grid-template-columns: 2fr 1fr;
   gap: 20px;
   flex: 1;
+}
+
+.learning-panel {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-row {
+  margin-top: 24px;
 }
 
 .main-chart {

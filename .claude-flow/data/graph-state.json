@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "updatedAt": 1774685687388,
+  "nodeCount": 2,
+  "nodes": {
+    "mem-project_livemirror----": {
+      "id": "mem-project_livemirror----",
+      "category": "project_livemirror",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1774685687387
+    },
+    "mem-project_livemirror-livemirror---active-project": {
+      "id": "mem-project_livemirror-livemirror---active-project",
+      "category": "project_livemirror",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1774685687387
+    }
+  },
+  "edges": [
+    {
+      "sourceId": "mem-project_livemirror----",
+      "targetId": "mem-project_livemirror-livemirror---active-project",
+      "type": "temporal",
+      "weight": 0.5
+    }
+  ],
+  "pageRanks": {
+    "mem-project_livemirror----": 0.3508771211772586,
+    "mem-project_livemirror-livemirror---active-project": 0.6491228788227412
+  }
+}

@@ -1,0 +1,28 @@
+[
+  {
+    "id": "mem-project_livemirror----",
+    "key": "-",
+    "content": "name: LiveMirror Project Context\ndescription: Real-time prediction engine — Claude/Gemini collab, current state and what each AI is working on\ntype: project\n---",
+    "summary": "---",
+    "namespace": "project_livemirror",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/avipattan/.claude/projects/-Users-avipattan/memory/project_livemirror.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1774685687387
+  },
+  {
+    "id": "mem-project_livemirror-livemirror---active-project",
+    "key": "livemirror-active-project",
+    "content": "**Repo**: https://github.com/marketingsales-debug/LiveMirror\n**Local**: /Users/avipattan/LiveMirror\n**Stack**: Python FastAPI backend + Vue 3 frontend\n**Collab**: Claude (backend/simulation/ingestion) + Gemini (analysis/frontend/dashboard)\n\n### Current State (2026-03-28)\n- 89 tests passing\n- Claude completed: simulation API wiring, multi-agent debate system, ingest/predict API wiring\n- Gemini is working on: fixing pipeline.py engagement bug, connecting dashboard to real SSE data, handling new SS",
+    "summary": "LiveMirror — Active Project",
+    "namespace": "project_livemirror",
+    "type": "semantic",
+    "metadata": {
+      "sourceFile": "/Users/avipattan/.claude/projects/-Users-avipattan/memory/project_livemirror.md",
+      "bootstrapped": true
+    },
+    "createdAt": 1774685687387
+  }
+]
