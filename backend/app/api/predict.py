@@ -19,6 +19,7 @@ from src.prediction.debate import DebateEngine
 from src.simulation.engine.runner import SimulationRunner
 from src.simulation.agents.factory import AgentFactory
 from src.simulation.calibration.calibrator import CalibrationEngine
+from src.learning.loop import LearningLoop
 from src.shared.types import Prediction, PredictionStatus
 
 router = APIRouter()
@@ -28,9 +29,11 @@ _debate = DebateEngine()
 _runner = SimulationRunner()
 _factory = AgentFactory()
 _calibrator = CalibrationEngine()
+_learning = LearningLoop(calibrator=_calibrator)
 
-# Track predictions
+# Track predictions (with simulation state for learning)
 _predictions: Dict[str, Dict[str, Any]] = {}
+_simulation_states: Dict[str, Any] = {}  # pred_id -> SimulationState
 
 
 class PredictRequest(BaseModel):
@@ -128,6 +131,10 @@ async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
         except ImportError:
             pass
 
+        # 6. Register for learning
+        _learning.register_prediction(prediction)
+        _simulation_states[pred_id] = state
+
         _predictions[pred_id]["status"] = "completed"
         _predictions[pred_id]["prediction"] = {
             "prediction_id": prediction.prediction_id,
@@ -200,3 +207,55 @@ async def prediction_history():
         if history else None
     )
     return {"predictions": history, "avg_confidence": avg_confidence}
+
+
+class ValidateRequest(BaseModel):
+    """Submit real-world outcome for a prediction."""
+    prediction_id: str
+    actual_outcome: str
+    accuracy_score: float  # 0-1
+
+
+@router.post("/validate")
+async def validate_prediction(request: ValidateRequest):
+    """
+    Submit real-world outcome to trigger the learning loop.
+
+    This is the self-improving feedback cycle:
+    1. Compares prediction against actual outcome
+    2. Adjusts agent behavioral fingerprints
+    3. Updates confidence calibration curve
+    4. Next prediction cycle uses adjusted parameters
+    """
+    pred = _predictions.get(request.prediction_id)
+    if not pred:
+        raise HTTPException(status_code=404, detail="Prediction not found")
+    if pred["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Can only validate completed predictions")
+
+    sim_state = _simulation_states.get(request.prediction_id)
+
+    result = _learning.validate_and_calibrate(
+        prediction_id=request.prediction_id,
+        actual_outcome=request.actual_outcome,
+        accuracy_score=request.accuracy_score,
+        simulation_state=sim_state,
+    )
+
+    validation = result["validation"]
+    calibration = result["calibration"]
+
+    return {
+        "prediction_id": request.prediction_id,
+        "accuracy": validation.accuracy_score,
+        "diagnosis": validation.diagnosis,
+        "calibration_adjustments": len(calibration.adjustments) if calibration else 0,
+        "confidence_offset": result["learning_stats"]["confidence_offset"],
+        "overall_accuracy": result["learning_stats"]["overall_accuracy"],
+    }
+
+
+@router.get("/learning")
+async def learning_stats():
+    """Get learning loop statistics — how well is the system calibrating?"""
+    return _learning.stats
