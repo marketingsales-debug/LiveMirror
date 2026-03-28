@@ -110,24 +110,18 @@ class SemanticScorer:
         query_tf = Counter(query_tokens)
         text_tf = Counter(text_tokens)
 
-        # IDF approximation — words in both docs get lower IDF
-        # (with only 2 docs, this is simplified)
-        doc_freq = {}
-        for token in all_tokens:
-            df = 0
-            if token in query_tf:
-                df += 1
-            if token in text_tf:
-                df += 1
-            doc_freq[token] = df
-
-        # TF-IDF vectors
+        # With only 2 docs, standard IDF breaks (identical docs → 0).
+        # Use smoothed TF-overlap instead: weight by frequency, penalize
+        # words that appear in only one doc.
         query_vec = {}
         text_vec = {}
         for token in all_tokens:
-            idf = math.log(3.0 / (doc_freq[token] + 1))  # +1 smoothing
-            query_vec[token] = query_tf.get(token, 0) * idf
-            text_vec[token] = text_tf.get(token, 0) * idf
+            q_count = query_tf.get(token, 0)
+            t_count = text_tf.get(token, 0)
+            # Boost tokens present in both docs
+            both = 1.5 if (q_count > 0 and t_count > 0) else 0.5
+            query_vec[token] = q_count * both
+            text_vec[token] = t_count * both
 
         # Cosine similarity
         dot = sum(query_vec[t] * text_vec[t] for t in all_tokens)

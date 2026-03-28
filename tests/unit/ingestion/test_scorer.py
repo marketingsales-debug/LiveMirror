@@ -25,7 +25,7 @@ def _make_signal(
 
 class TestSignalScorer:
     def setup_method(self):
-        self.scorer = SignalScorer()
+        self.scorer = SignalScorer(use_embeddings=False)
 
     def test_scores_relevant_signal_higher(self):
         signals = [

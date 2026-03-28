@@ -169,6 +169,9 @@ class TwitterIngester(BaseIngester):
                 try:
                     from email.utils import parsedate_to_datetime
                     ts = parsedate_to_datetime(pub_date.group(1))
+                    # Normalize to naive datetime for comparison
+                    if ts.tzinfo is not None:
+                        ts = ts.replace(tzinfo=None)
                 except Exception:
                     ts = datetime.now()
 
