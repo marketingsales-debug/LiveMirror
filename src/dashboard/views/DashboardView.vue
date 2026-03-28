@@ -72,7 +72,7 @@ onMounted(() => {
         id: data.signal_id,
         name: data.fingerprint,
         stage: data.narrative_stage,
-        score: data.sentiment_score,
+        score: data.emotional_velocity,
         platform: data.platform,
         isTipping: data.is_tipping_point
       });
