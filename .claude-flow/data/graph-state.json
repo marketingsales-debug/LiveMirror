@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": 1774685687388,
-  "nodeCount": 2,
+  "updatedAt": 1774705900694,
+  "nodeCount": 3,
   "nodes": {
     "mem-project_livemirror----": {
       "id": "mem-project_livemirror----",
@@ -16,6 +16,13 @@
       "confidence": 0.5,
       "accessCount": 0,
       "createdAt": 1774685687387
+    },
+    "insight-1774705900692-t72r": {
+      "id": "insight-1774705900692-t72r",
+      "category": "insights",
+      "confidence": 0.5,
+      "accessCount": 0,
+      "createdAt": 1774705900692
     }
   },
   "edges": [
@@ -27,7 +34,8 @@
     }
   ],
   "pageRanks": {
-    "mem-project_livemirror----": 0.3508771211772586,
-    "mem-project_livemirror-livemirror---active-project": 0.6491228788227412
+    "mem-project_livemirror----": 0.25974027943766376,
+    "mem-project_livemirror-livemirror---active-project": 0.48051944112467226,
+    "insight-1774705900692-t72r": 0.25974027943766376
   }
 }

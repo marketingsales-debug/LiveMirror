@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "computedAt": 1774685687388,
+  "computedAt": 1774705900695,
   "entries": [
     {
       "id": "mem-project_livemirror-livemirror---active-project",
@@ -8,7 +8,7 @@
       "summary": "LiveMirror — Active Project",
       "category": "project_livemirror",
       "confidence": 0.5,
-      "pageRank": 0.6491228788227412,
+      "pageRank": 0.48051944112467226,
       "accessCount": 0,
       "words": [
         "repo",
@@ -77,7 +77,7 @@
       "summary": "---",
       "category": "project_livemirror",
       "confidence": 0.5,
-      "pageRank": 0.3508771211772586,
+      "pageRank": 0.25974027943766376,
       "accessCount": 0,
       "words": [
         "name",
@@ -99,6 +99,31 @@
         "project",
         "---",
         "---"
+      ]
+    },
+    {
+      "id": "insight-1774705900692-t72r",
+      "content": "File unknown was edited 96 times this session — likely a hot path worth monitoring.",
+      "summary": "Frequently edited: unknown (96x)",
+      "category": "insights",
+      "confidence": 0.5,
+      "pageRank": 0.25974027943766376,
+      "accessCount": 0,
+      "words": [
+        "file",
+        "unknown",
+        "edited",
+        "times",
+        "session",
+        "likely",
+        "hot",
+        "path",
+        "worth",
+        "monitoring",
+        "frequently",
+        "edited",
+        "unknown",
+        "96x"
       ]
     }
   ]

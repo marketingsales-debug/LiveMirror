@@ -105,6 +105,8 @@ async def stream_events():
     SSE endpoint — streams real-time events to the frontend.
 
     Event types:
+    - [ ] agent_thought: status/thoughts from the autonomous coding agent
+    - [ ] agent_action: file write or shell command execution details
     - connected: initial connection confirmation
     - heartbeat: keep-alive (every 30s)
     - ingestion_progress: signals found per platform
@@ -228,4 +230,20 @@ async def emit_ingestion_complete(
         "total_signals": total_signals,
         "platforms_searched": platforms_searched,
         "top_composite_score": top_score,
+    })
+
+
+async def emit_agent_thought(message: str, step: str = "thinking") -> None:
+    """Emit a thought from the autonomous coding agent."""
+    await event_bus.publish("agent_thought", {
+        "message": message,
+        "step": step,
+    })
+
+
+async def emit_agent_action(action_type: str, details: Dict[str, Any]) -> None:
+    """Emit an action (WRITE_FILE / EXEC) taken by the agent."""
+    await event_bus.publish("agent_action", {
+        "action_type": action_type,
+        "details": details,
     })
