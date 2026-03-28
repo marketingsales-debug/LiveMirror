@@ -59,8 +59,25 @@ class EventBus:
             self._subscribers.remove(q)
 
 
-# Global event bus — components import this to publish events
-event_bus = EventBus()
+# Global event bus — uses Redis when available, in-memory fallback.
+# The RedisEventBus has the same interface as EventBus, so all
+# emit_* helpers work identically regardless of backend.
+_redis_bus = None
+
+def _get_event_bus():
+    """Get or create the event bus (Redis-backed if available)."""
+    global _redis_bus
+    if _redis_bus is not None:
+        return _redis_bus
+    try:
+        from src.streaming.redis_bus import RedisEventBus
+        _redis_bus = RedisEventBus()
+        # Connection happens async in lifespan — for now return it
+        return _redis_bus
+    except ImportError:
+        return EventBus()
+
+event_bus = _get_event_bus()
 
 
 async def _event_generator(queue: asyncio.Queue) -> AsyncGenerator[str, None]:

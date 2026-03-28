@@ -28,8 +28,24 @@ async def lifespan(app: FastAPI):
         print("LiveMirror: Pipeline → Simulation graph wired.")
     except Exception as e:
         print(f"LiveMirror: Graph wiring skipped ({e})")
+
+    # Try connecting Redis event bus
+    try:
+        from .api.stream import event_bus
+        if hasattr(event_bus, 'connect'):
+            await event_bus.connect()
+    except Exception as e:
+        print(f"LiveMirror: Redis connection skipped ({e})")
+
     yield
-    # Shutdown
+
+    # Shutdown — close Redis
+    try:
+        from .api.stream import event_bus
+        if hasattr(event_bus, 'close'):
+            await event_bus.close()
+    except Exception:
+        pass
     print("LiveMirror engine shutting down...")
 
 

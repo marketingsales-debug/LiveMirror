@@ -24,6 +24,8 @@ from src.ingestion.platforms.twitter import TwitterIngester
 from src.ingestion.platforms.youtube import YouTubeIngester
 from src.ingestion.platforms.bluesky import BlueskyIngester
 from src.ingestion.platforms.news import NewsIngester
+from src.ingestion.platforms.tiktok import TikTokIngester
+from src.ingestion.platforms.instagram import InstagramIngester
 from src.shared.types import Platform
 
 router = APIRouter()
@@ -48,6 +50,8 @@ def _get_pipeline() -> LiveMirrorPipeline:
         _pipeline.register_ingester(YouTubeIngester())
         _pipeline.register_ingester(BlueskyIngester())
         _pipeline.register_ingester(NewsIngester())
+        _pipeline.register_ingester(TikTokIngester())
+        _pipeline.register_ingester(InstagramIngester())
     return _pipeline
 
 
