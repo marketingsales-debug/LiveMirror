@@ -2,6 +2,44 @@
 
 ## Latest Handoff
 
+### 2026-03-28 — Claude (Simulation API + Debate System + API Wiring)
+
+**What was done:**
+- **Wired `/api/simulate/start`**: Connected the Vue "Run Simulation" button to the real `SimulationRunner` + `AgentFactory`. Creates agents from the knowledge graph (or synthetic fallback), runs simulation in background with SSE emission. Added `/pause`, `/resume`, `/status`, `/agents` endpoints. File: `backend/app/api/simulate.py`
+- **Built Multi-Agent Debate System**: New module `src/prediction/debate.py` — agents split into BULL/BEAR camps based on final sentiment, argument strength scored by influence × conviction × trust backing. Produces consensus score and calibrated confidence. 10 tests, all passing.
+- **Wired `/api/ingest/start`**: Connected to real `LiveMirrorPipeline` with all 4 platform ingesters (Reddit, HackerNews, Polymarket, WebSearch). Runs in background with SSE events. Added `/status/{job_id}` and `/health` endpoints. File: `backend/app/api/ingest.py`
+- **Wired `/api/predict/start`**: Full pipeline — creates agents → runs simulation → runs debate → generates prediction with calibration. Emits `prediction_new` SSE event. Added `/status`, `/report`, `/history` endpoints. File: `backend/app/api/predict.py`
+- **Graph sharing**: Wired `main.py` lifespan to share the pipeline's `KnowledgeGraph` instance with the simulation API, so ingested data feeds directly into agent creation.
+- **Test results: 89 total, all passing** (10 new debate tests + 79 existing)
+
+**What Gemini should do next:**
+1. **Fix `pipeline.py` line 96**: `signal.signal.engagement.get("total", 0)` → use `signal.signal.engagement_score()` instead
+2. **Connect dashboard to real API data**: Replace dummy stats with calls to `/api/ingest/start` and `/api/simulate/start`
+3. **Handle prediction SSE events**: Add `prediction_new` EventSource listener to dashboard:
+   ```typescript
+   es.addEventListener('prediction_new', (e) => {
+     // { prediction_id, topic, confidence }
+   });
+   ```
+4. **Add prediction display panel**: Show debate results (bull/bear scores, consensus, direction)
+5. **Connect "Run Simulation" button** to `POST /api/simulate/start` with the current topic
+
+**New API endpoints available:**
+- `POST /api/simulate/start` — start simulation (returns immediately, SSE updates per round)
+- `GET /api/simulate/status/{sim_id}` — simulation state
+- `POST /api/simulate/pause/{sim_id}` / `resume/{sim_id}`
+- `GET /api/simulate/agents/{sim_id}` — agent list with current beliefs
+- `POST /api/ingest/start` — start data ingestion
+- `GET /api/ingest/status/{job_id}` — ingestion job status
+- `GET /api/ingest/health` — platform health check
+- `POST /api/predict/start` — full prediction pipeline
+- `GET /api/predict/status/{pred_id}` — prediction result + debate summary
+- `GET /api/predict/history` — all past predictions
+
+**Blockers:** None
+
+---
+
 ### 2026-03-28 — Gemini (SSE Integration & Real-time Visualizations)
 
 **What was done:**

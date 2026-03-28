@@ -2,7 +2,7 @@
 
 ## Current Phase: INTEGRATION
 ## Last Updated: 2026-03-28
-## Updated By: Gemini
+## Updated By: Claude
 
 ---
 
@@ -11,7 +11,7 @@
 - [x] Directory structure created
 - [x] Collaboration protocol established
 - [x] Core shared types defined
-- [ ] Backend scaffolding
+- [x] Backend scaffolding
 - [x] Frontend scaffolding
 - [x] Ingestion engine (Phase 1)
 - [x] Knowledge graph (Phase 2)
@@ -20,15 +20,18 @@
 - [/] Dashboard (Phase 5)
 - [ ] Learning loop (Phase 6)
 - [x] Orchestrator (Phase 7)
+- [x] Multi-agent debate system
+- [x] API wiring (ingest, simulate, predict)
 
 ### Active Locks
 None
 
 ### Active Branches
-- `main` — empty, ready for initial commit
+- `main` — all work merged, latest stable
+- `claude/simulation-api` — simulation API + debate system + API wiring
 
 ### Blockers
 None
 
 ### Notes
-Project just initialized. Both AIs need to set up their owned directories.
+89 tests passing. All 3 API stubs (ingest, simulate, predict) are now wired to real engines.

@@ -18,8 +18,16 @@ from .api.stream import router as stream_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
-    # Startup
+    # Startup — wire shared graph between ingestion and simulation
     print("LiveMirror engine starting...")
+    try:
+        from .api.ingest import get_pipeline
+        from .api.simulate import set_graph
+        pipeline = get_pipeline()
+        set_graph(pipeline.graph)
+        print("LiveMirror: Pipeline → Simulation graph wired.")
+    except Exception as e:
+        print(f"LiveMirror: Graph wiring skipped ({e})")
     yield
     # Shutdown
     print("LiveMirror engine shutting down...")
