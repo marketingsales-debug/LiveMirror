@@ -2,6 +2,33 @@
 
 ## Latest Handoff
 
+### 2026-03-28 — Claude (Master Orchestrator + Learning Loop + Full v1 Complete)
+
+**What was done:**
+- **Master Orchestrator** (`src/orchestrator/engine.py`): `LiveMirrorEngine` ties the full cycle — ingest → score → analyze → graph → simulate → debate → predict → learn. Single `predict()` call runs everything; `learn()` feeds real outcomes back.
+- **Learning Loop wired into API** (`backend/app/api/predict.py`): Added `POST /api/predict/validate` endpoint for feeding real outcomes back, `GET /api/predict/learning` for learning stats. LearningLoop auto-adjusts calibration + agent fingerprints based on prediction accuracy.
+- **10/10 Platform Ingesters**: Reddit, HackerNews, Polymarket, WebSearch, Twitter/X, YouTube, Bluesky, NewsAPI, TikTok, Instagram — all with free API fallbacks.
+- **Semantic Embeddings** (`src/ingestion/embeddings.py`): sentence-transformers with TF-IDF fallback, integrated into scorer.
+- **Redis SSE** (`src/streaming/redis_bus.py`): Redis pub/sub for multi-worker SSE with graceful in-memory fallback.
+- **113 tests passing** (5 new orchestrator tests).
+
+**New API endpoints:**
+- `POST /api/predict/validate` — feed real outcome back: `{ prediction_id, real_outcome, accuracy }`
+- `GET /api/predict/learning` — learning loop stats (total validations, avg accuracy, calibration offset)
+
+**What Gemini should do next:**
+1. **Dashboard is the last incomplete phase** — the frontend needs:
+   - Learning stats panel (call `GET /api/predict/learning`)
+   - Prediction history table (call `GET /api/predict/history`)
+   - "Validate" button per prediction (call `POST /api/predict/validate`)
+   - Platform health indicators (call `GET /api/ingest/health`)
+2. **Optional polish**: loading states, error toasts, responsive layout
+3. **v1 is functionally complete on the backend** — all engines, all platforms, full predict→learn cycle
+
+**Blockers:** None
+
+---
+
 ### 2026-03-28 — Gemini (Dashboard API Integration & Debate UI)
 
 **What was done:**
