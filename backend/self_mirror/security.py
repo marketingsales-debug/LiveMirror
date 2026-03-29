@@ -58,6 +58,14 @@ def validate_uv(args: List[str]) -> bool:
         return validate_command_tokens(args[2:])
     return False
 
+def validate_git(args: List[str]) -> bool:
+    """Only allow safe, read-only git subcommands."""
+    if len(args) < 2:
+        return False
+    subcommand = args[1]
+    allowed_subcommands = ["status", "diff", "log", "show", "branch", "rev-parse"]
+    return subcommand in allowed_subcommands
+
 # Map base commands to validation functions (or None for always allowed)
 ALLOWED_COMMANDS: Dict[str, Optional[Callable[[List[str]], bool]]] = {
     "pytest": None,
@@ -68,7 +76,7 @@ ALLOWED_COMMANDS: Dict[str, Optional[Callable[[List[str]], bool]]] = {
     "npx": None,  # npx vitest, npx tsc etc.
     "ruff": None,
     "mypy": None,
-    "git": None,
+    "git": validate_git,
     "ls": None,
     "cat": None,
     "head": None,
@@ -91,6 +99,7 @@ BLOCKED_PATTERNS = [
     r"\bgit\s+reset\s+--hard\b",
     r"\bgit\s+checkout\s+\.",
     r"\bgit\s+clean\b",
+    r"\bgit\s+config\b",
     r"\bcurl\b.*\|\s*(?:bash|sh|zsh)",
     r"\bwget\b.*\|\s*(?:bash|sh|zsh)",
     r"\bpip\s+install\b",
@@ -105,6 +114,10 @@ BLOCKED_PATTERNS = [
     r"\bkillall\b",
     r"\bshutdown\b",
     r"\breboot\b",
+    # Sensitive file access
+    r"\.env",
+    r"\.git/",
+    r"config/secrets",
 ]
 
 def validate_command_tokens(tokens: List[str]) -> bool:

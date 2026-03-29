@@ -24,7 +24,12 @@ class FileService:
         self.base_path = Path(base_path).resolve()
 
     def _safe_path(self, relative_path: str) -> Path:
-        """Ensure path is within the base directory."""
+        """Ensure path is within the base directory and not a sensitive file."""
+        # Prevent access to extremely sensitive files even within workspace
+        blocked = [".env", ".git/", "config/secrets", "backend/app/.env"]
+        if any(b in relative_path for b in blocked):
+            raise PermissionError(f"Access denied: {relative_path} is a protected system file.")
+
         path = (self.base_path / relative_path).resolve()
         if not str(path).startswith(str(self.base_path)):
             raise PermissionError(f"Access denied: {relative_path} is outside the workspace.")

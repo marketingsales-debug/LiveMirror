@@ -120,6 +120,24 @@ class TestFileService:
         assert all("node_modules" not in f for f in files)
 
 
+class TestFileServiceSecurity:
+    """Security-specific tests for FileService."""
+
+    @pytest.fixture
+    def fs(self, tmp_path):
+        return FileService(str(tmp_path))
+
+    def test_safe_path_blocks_sensitive_files(self, fs):
+        """Ensure FileService blocks access to protected system files."""
+        with pytest.raises(PermissionError, match="protected system file"):
+            fs._safe_path(".env")
+        
+        with pytest.raises(PermissionError, match="protected system file"):
+            fs._safe_path(".git/config")
+            
+        with pytest.raises(PermissionError, match="protected system file"):
+            fs._safe_path("backend/app/.env")
+
 # ── ExecutionService ────────────────────────────────────────────────
 
 

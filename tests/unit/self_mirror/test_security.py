@@ -116,7 +116,11 @@ class TestValidateCommand:
         "npm install",
         "npm run start", # Only test/lint/build allowed
         "uv run pip install malware",
-        "git push origin main",
+        "git config --global user.name 'Attacker'",
+        "git checkout .",
+        "git push",
+        "cat .env",
+        "ls .git/",
         "ls /etc/passwd && rm -rf /",
     ])
     def test_adversarial_subcommands(self, cmd):
