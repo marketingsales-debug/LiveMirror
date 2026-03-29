@@ -27,11 +27,31 @@ class LessonLearntStore:
                     agent_id TEXT,
                     topic TEXT,
                     content TEXT,
-                    embedding_json TEXT, -- Placeholder for Phase 14
+                    embedding_json TEXT,
                     created_at TIMESTAMP,
                     relevance_score REAL
                 )
             """)
+            # Relational Graph Table (Phase 8)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS triples (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    subject TEXT,
+                    predicate TEXT,
+                    object TEXT,
+                    confidence REAL,
+                    source_id TEXT
+                )
+            """)
+            conn.commit()
+
+    def save_triple(self, subject: str, predicate: str, obj: str, confidence: float = 1.0):
+        """Save a knowledge graph triple."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT INTO triples (subject, predicate, object, confidence) VALUES (?, ?, ?, ?)",
+                (subject, predicate, obj, confidence)
+            )
             conn.commit()
 
     def save_lesson(self, agent_id: str, topic: str, content: str, relevance: float = 1.0):
