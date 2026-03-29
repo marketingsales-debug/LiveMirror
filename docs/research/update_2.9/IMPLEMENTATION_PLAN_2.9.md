@@ -1,6 +1,6 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, and Z1 Inference Scaling.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, and PaperBench Verification.
 
 ---
 
@@ -60,14 +60,19 @@ Transform the system from pattern-matching to structured "Open-Book" reasoning.
 
 ## ⏱️ Phase 11: Z1 Shifted-Thinking Engine
 Implement efficient test-time scaling to trade off compute for accuracy dynamically.
-*   **Thinking Orchestrator:** Manage two-stage inference (Stage 1: Trajectory, Stage 2: Synthesis).
-*   **Variable Compute Scheduler:** Adjust the "Thinking Window" size based on signal volatility (High Volatility = Deep Thought).
-*   **Shift-Prompt Logic:** Append "Shifted Thinking" prompts to force the model to resolve reasoning conflicts.
+*   **Thinking Orchestrator:** Manage two-stage inference (Trajectory + Synthesis).
+*   **Variable Compute Scheduler:** Adjust Thinking Window based on signal volatility.
+
+## ✅ Phase 12: Autonomous R&D Verification (PaperBench)
+Establish "Human-Level" engineering standards for the agent board.
+*   **Golden Rubric System:** Create `docs/rubrics/` to grade autonomous code changes against expert standards.
+*   **Reproduction Pipeline:** Formalize the "Verify" step into a full-scale reproduction run in the Sandbox.
+*   **Judge Agent:** Implement a specialized board role that uses SimpleJudge logic to approve or reject merges.
 
 ## 📅 Roadmap for Implementation
 1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, `src/skills/`, and Agent Router.
 2.  **Week 2:** Implement handover logic, Delta metrics, and RARE Open-Book refactor.
-3.  **Week 3:** Perform first "Self-Evolved Calibration" with Z1 Shifted-Thinking and Slerp merge.
+3.  **Week 3:** Deploy Z1 Thinking, PaperBench Rubrics, and perform first "Self-Evolved" Slerp merge.
 
 ---
-**Success Criteria:** The system autonomously increases accuracy to 94% with <45ms average latency and a 50% reduction in frontier LLM costs.
+**Success Criteria:** The system autonomously increases accuracy to 94% with <45ms latency, 50% cost reduction, and human-verified engineering quality across all patches.
