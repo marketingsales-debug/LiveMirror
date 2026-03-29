@@ -2,6 +2,24 @@
 
 ## Latest Handoff
 
+### 2026-03-29 — Claude (Intent & Sentiment Upgrades) — Model: GPT-5.1-Codex-Max
+
+**What was done:**
+- Rebuilt `IntentDetector`: normalized keyword scoring, duplication/burst-based coordination detection, richer author credibility (age, engagement, verification, accuracy, strikes), tunable thresholds.
+- Hardened `SentimentEncoder` (FinBERT): correct label mapping, device-aware loading, injectable model/tokenizer, safe text handling, consistent projections.
+- Tests updated with dummy components and coverage for new heuristics; fixed DummyModel truthiness bug.
+- Test run in `.venv` with torch/transformers and numpy<2 for compatibility: `pytest tests/unit/fusion/test_intent_detector.py tests/unit/fusion/test_sentiment_encoder.py` → **9 passed**.
+
+**Why:** Improve manipulation/credibility detection and stabilize FinBERT sentiment outputs; ensure reliability with deterministic tests.
+
+**What to do next:**
+1. Keep `.venv` local (not committed); ensure CI uses matching deps.
+2. Propagate intent/sentiment outputs into downstream fusion pipelines as needed.
+
+**Blockers:** None.
+
+---
+
 ### 2026-03-29 — Gemini (Security Audit & SelfMirror Hardening)
 
 **What was done:**
