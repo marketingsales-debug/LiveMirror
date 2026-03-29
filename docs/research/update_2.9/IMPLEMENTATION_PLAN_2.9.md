@@ -1,6 +1,6 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, and RARE Reasoning.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, and Z1 Inference Scaling.
 
 ---
 
@@ -54,14 +54,20 @@ Integrate local, ultra-efficient vision processing for real-time multimodal anal
 
 ## 🧠 Phase 10: RARE Reasoning Architecture
 Transform the system from pattern-matching to structured "Open-Book" reasoning.
-*   **Knowledge-Reasoning Separation:** Decouple signal retrieval (Knowledge Graph) from analysis (Transformer Logic) to eliminate hallucinations.
-*   **Dynamic Thinking Buffer (Z1):** Implement test-time search scaling for high-volatility predictions.
-*   **Architectural Refactor Skill:** Enable the Board to autonomously optimize the codebase structure (CodeScientist).
+*   **Knowledge-Reasoning Separation:** Decouple signal retrieval from analysis logic.
+*   **Dynamic Thinking Buffer (Open Deep Search):** Implement test-time search scaling.
+*   **Architectural Refactor Skill:** Enable Board to autonomously optimize codebase structure.
+
+## ⏱️ Phase 11: Z1 Shifted-Thinking Engine
+Implement efficient test-time scaling to trade off compute for accuracy dynamically.
+*   **Thinking Orchestrator:** Manage two-stage inference (Stage 1: Trajectory, Stage 2: Synthesis).
+*   **Variable Compute Scheduler:** Adjust the "Thinking Window" size based on signal volatility (High Volatility = Deep Thought).
+*   **Shift-Prompt Logic:** Append "Shifted Thinking" prompts to force the model to resolve reasoning conflicts.
 
 ## 📅 Roadmap for Implementation
 1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, `src/skills/`, and Agent Router.
 2.  **Week 2:** Implement handover logic, Delta metrics, and RARE Open-Book refactor.
-3.  **Week 3:** First "Self-Evolved Calibration" with Z1-Reasoning and Slerp merge.
+3.  **Week 3:** Perform first "Self-Evolved Calibration" with Z1 Shifted-Thinking and Slerp merge.
 
 ---
-**Success Criteria:** The system autonomously increases accuracy to 94% while maintaining <45ms latency and reduced operational costs.
+**Success Criteria:** The system autonomously increases accuracy to 94% with <45ms average latency and a 50% reduction in frontier LLM costs.
