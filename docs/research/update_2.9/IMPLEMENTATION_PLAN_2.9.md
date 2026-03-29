@@ -1,6 +1,6 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, and EvoScientist Multi-Agent/Skill logic.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, and Frontier Algorithmic stabilizers.
 
 ---
 
@@ -18,7 +18,7 @@ Transition from a single agent to a specialized team based on **EvoScientist** r
 
 ## 🧠 Phase 3: Persistent Evolutionary Memory (`EVOLUTIONARY_MEMORY.json`)
 Program the "Agent's Wisdom" to survive across sessions.
-*   **Ideation Memory:** Tracks what hypotheses (e.g. "Increase Audio Weight") succeeded or failed.
+*   **Ideation Memory:** Tracks what hypotheses succeeded or failed.
 *   **Experimentation Memory:** Stores reusable code-patterns for data normalization.
 
 ## 🛡️ Phase 4: The Stability Layer (Weight Interpolation)
@@ -29,12 +29,17 @@ Use the `anarchitectural-search` logic to safely merge self-discovered improveme
 Adopt the **EvoSkills** pattern to give the board specific "Expertise Packs."
 *   **Signal Tournament Skill:** A workflow for ranking narrative signals by Elo score.
 *   **Ablation Skill:** A workflow for identifying redundant modality components.
-*   **Diagnostic Flow:** Forced logging of *why* an experiment failed before retrying.
+
+## ⚡ Phase 6: Algorithmic Stabilizers (Frontier Theory)
+Integrate recent breakthroughs from dair-ai ML research (2025-2026).
+*   **Delta Signal Analysis:** Implement `emotional_delta` to track the *acceleration* of narrative growth.
+*   **Elastic Caching:** Optimize KV-caches in the Sentiment Encoder to hit the "7x Speed" target.
+*   **Reward-Based Verification (HERO):** Upgrade the Board's self-review logic to score code quality, not just test results.
 
 ## 📅 Roadmap for Implementation
-1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, and `src/skills/` directory.
-2.  **Week 2:** Implement the RA -> EA -> Analyst board handover logic.
-3.  **Week 3:** Perform the first "Elo-Based Signal Tournament" and safe Slerp merge into `main`.
+1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, and `src/skills/`.
+2.  **Week 2:** Implement RA -> EA -> Analyst handover and "Delta Sentiment" metrics.
+3.  **Week 3:** Perform the first "Self-Evolved Calibration" with Elastic Caching and Slerp merge.
 
 ---
-**Success Criteria:** The system autonomously discovers and "installs" a new skill workflow that improves prediction precision by >3% as verified by the Backtest Analyst.
+**Success Criteria:** The system autonomously increases its own accuracy by >3% and reduces latency to <15ms through self-discovered algorithmic optimizations.
