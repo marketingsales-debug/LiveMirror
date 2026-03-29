@@ -9,6 +9,8 @@ enabling continuous learning from validated predictions.
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
+import asyncio
+import uuid
 import numpy as np
 import json
 

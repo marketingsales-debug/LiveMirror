@@ -105,18 +105,39 @@ async def stream_events():
     SSE endpoint — streams real-time events to the frontend.
 
     Event types:
-    - [ ] agent_thought: status/thoughts from the autonomous coding agent
-    - [ ] agent_action: file write or shell command execution details
     - connected: initial connection confirmation
     - heartbeat: keep-alive (every 30s)
+    
+    Ingestion:
     - ingestion_progress: signals found per platform
     - ingestion_complete: all platforms done
+    
+    Analysis:
     - analysis_result: sentiment/contagion/narrative analysis for a signal
     - graph_update: knowledge graph entity/edge counts
+    - fusion_result: multimodal fusion consensus
+    
+    Simulation:
     - simulation_round: agent actions for a round
     - simulation_complete: simulation finished
+    
+    Prediction:
     - prediction_new: new prediction generated
     - prediction_validated: prediction vs reality result
+    - audience_prediction: segment-specific prediction
+    - temporal_update: momentum/velocity/acceleration
+    
+    Fine-Tuning:
+    - fine_tune_started: loop begins with sample count
+    - fine_tune_progress: epoch progress with loss/accuracy
+    - fine_tune_completed: success or rollback notification
+    - accuracy_drift: model drift warning/critical alert
+    
+    Autonomous Agent:
+    - agent_thought: status/thoughts from coding agent
+    - agent_action: file write or shell execution
+    
+    System:
     - health_update: component health change
     - alert: important notification
     """
@@ -287,4 +308,74 @@ async def emit_temporal_update(
         "momentum": momentum,
         "velocity": velocity,
         "acceleration": acceleration,
+    })
+
+
+# ============================================
+# Fine-Tuning Loop SSE Events
+# ============================================
+
+async def emit_fine_tune_started(
+    run_id: str,
+    samples: int,
+    epochs: int,
+) -> None:
+    """Emit when fine-tuning loop starts."""
+    await event_bus.publish("fine_tune_started", {
+        "run_id": run_id,
+        "samples": samples,
+        "epochs": epochs,
+    })
+
+
+async def emit_fine_tune_progress(
+    run_id: str,
+    epoch: int,
+    total_epochs: int,
+    loss: float,
+    accuracy: float,
+) -> None:
+    """Emit fine-tuning progress updates."""
+    await event_bus.publish("fine_tune_progress", {
+        "run_id": run_id,
+        "epoch": epoch,
+        "total_epochs": total_epochs,
+        "loss": loss,
+        "accuracy": accuracy,
+        "progress_pct": round(epoch / total_epochs * 100, 1),
+    })
+
+
+async def emit_fine_tune_completed(
+    run_id: str,
+    samples: int,
+    pre_accuracy: float,
+    post_accuracy: float,
+    improvement: float,
+    rollback: bool = False,
+) -> None:
+    """Emit when fine-tuning completes (success or rollback)."""
+    await event_bus.publish("fine_tune_completed", {
+        "run_id": run_id,
+        "samples": samples,
+        "pre_accuracy": pre_accuracy,
+        "post_accuracy": post_accuracy,
+        "improvement": improvement,
+        "rollback": rollback,
+        "status": "rollback" if rollback else "success",
+    })
+
+
+async def emit_accuracy_drift_alert(
+    current_accuracy: float,
+    baseline_accuracy: float,
+    drift_magnitude: float,
+    severity: str,
+) -> None:
+    """Emit accuracy drift alert for monitoring."""
+    await event_bus.publish("accuracy_drift", {
+        "current_accuracy": current_accuracy,
+        "baseline_accuracy": baseline_accuracy,
+        "drift_magnitude": drift_magnitude,
+        "severity": severity,  # "warning", "critical"
     })
