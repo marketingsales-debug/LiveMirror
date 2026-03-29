@@ -69,6 +69,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Root health check for Docker/load balancer
+@app.get("/health")
+async def root_health():
+    """Root health check for Docker/Kubernetes."""
+    return {"status": "ok"}
+
+
 # Routers
 app.include_router(health_router, prefix="/api", tags=["health"])
 app.include_router(ingest_router, prefix="/api/ingest", tags=["ingestion"])
