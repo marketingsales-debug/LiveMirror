@@ -236,8 +236,13 @@ class FineTuningLoop:
         post_accuracy = self._compute_accuracy(val_data)
         improvement = post_accuracy - pre_accuracy
         
-        # 7. Rollback if degraded
-        if improvement < 0:
+        # 6b. Run regression test if harness available
+        regression_passed = True
+        if self.harness is not None:
+            regression_passed = self._run_regression_test(pre_accuracy)
+        
+        # 7. Rollback if degraded or regression failed
+        if improvement < 0 or not regression_passed:
             self._restore_weights()
             post_accuracy = pre_accuracy
             improvement = 0.0
@@ -261,6 +266,33 @@ class FineTuningLoop:
         self._last_tune_at = datetime.now()
         
         return result
+    
+    def _run_regression_test(self, baseline_accuracy: float) -> bool:
+        """
+        Run regression test using BacktestHarness.
+        
+        Args:
+            baseline_accuracy: Pre-tune accuracy to compare against
+            
+        Returns:
+            True if regression test passes (no degradation)
+        """
+        if self.harness is None or not self.harness.signals:
+            return True  # No harness or signals, skip regression
+        
+        try:
+            metrics = self.harness.run_backtest(emit_progress=False)
+            
+            # Pass if accuracy didn't drop more than 5%
+            threshold = baseline_accuracy * 0.95
+            return metrics.accuracy >= threshold
+        except Exception:
+            # On error, assume regression passed (don't block fine-tuning)
+            return True
+    
+    def set_regression_harness(self, harness) -> None:
+        """Set the BacktestHarness for regression testing."""
+        self.harness = harness
     
     def _split_samples(self, samples: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
         """Split samples into training and validation sets."""

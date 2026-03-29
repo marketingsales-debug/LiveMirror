@@ -2,6 +2,35 @@
 
 ## Latest Handoff
 
+### 2026-03-30 — Claude (Integration: Loop Wiring & Bug Fixes) — Model: Claude Opus 4.5
+
+**What was done:**
+- **Fixed 8 pre-existing test failures:**
+  - Added `id` field to `RawSignal` with auto-generation via MD5 hash
+  - Added missing `numpy` import in `orchestrator/engine.py`
+  - Fixed fine-tune input format (extract `.embedding` from `ModalityEmbedding`)
+- **Wired `FineTuningLoop` → `LearningLoop`:**
+  - `LearningLoop` now integrates `FineTuningLoop` as a component
+  - Validated samples automatically queue for fine-tuning
+  - `maybe_fine_tune()` triggers automatically after validation
+  - Stats include fine-tune pending samples and run count
+- **Added regression testing to fine-tuning:**
+  - `FineTuningLoop._run_regression_test()` uses `BacktestHarness`
+  - Rollback triggered if regression accuracy drops >5%
+  - `set_regression_harness()` method for integration
+- **All 403 tests passing**
+
+**Why:** Complete the integration layer between backtesting, fine-tuning, and the main learning loop. Enable continuous improvement with automatic regression safeguards.
+
+**What to do next:**
+1. Stream A: Staging deployment
+2. Add SSE events for fine-tune progress
+3. Build monitoring dashboard for learning metrics
+
+**Blockers:** None.
+
+---
+
 ### 2026-03-30 — Gemini (10/10 Code Quality & Security Finalization)
 
 **What was done:**
