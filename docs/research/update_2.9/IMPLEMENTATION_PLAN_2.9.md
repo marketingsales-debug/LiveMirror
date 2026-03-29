@@ -1,6 +1,6 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, AI2 Scientific Experimentation, Tiered Memory, and Time-Series Intelligence.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, AI2 Scientific Experimentation, Tiered Memory, Time-Series Intelligence, and Resilient Data Infrastructure.
 
 ---
 
@@ -8,7 +8,7 @@
 Establish a restricted environment where the **SelfMirror** agent board has full "Self-Modification" permissions.
 
 ## 🧪 Phase 2: The Multi-Agent Research Board
-Transition from a single agent to a specialized team (RA, EA, Analyst, EMA).
+Transition from a single agent to a specialized team (Researcher, Engineer, Analyst, EMA).
 
 ## 🧠 Phase 3: Persistent Evolutionary Memory (Mem0)
 Program the "Agent's Wisdom" to survive across sessions using **Mem0**.
@@ -47,15 +47,18 @@ Automate the end-to-end scientific method for architectural discovery.
 Upgrade the "Brain" with high-velocity (Qdrant) and relational (LightRAG) memory.
 
 ## 📈 Phase 15: Time-Series & Numerical Intelligence
-Bridge the gap between narratives and raw market data.
-*   **Zero-Shot Projection:** Use **Chronos** to project the numerical impact of social contagion.
-*   **Anomaly Detection:** Integrate **Merlion** to flag "Fake Hype" (social surge vs stagnant volume).
-*   **Ensemble Consensus:** Use **AutoGluon** to find the optimal mathematical weighting between NLP, Vision, and Time-Series signals.
+Bridge the gap between narratives and raw market data using **Chronos** and **Merlion**.
+
+## 🌊 Phase 16: Resilient Data Infrastructure (The Plumbing)
+Move from script-based collection to a production-grade decoupled event stream.
+*   **Event Bus:** Deploy **Redpanda** to handle all signal traffic with near-zero latency.
+*   **Schema Loading:** Use **dlt** to standardize the output of all 10 scrapers into a unified format.
+*   **Asset Orchestration:** Use **Dagster** to manage and monitor the end-to-end autonomous research lifecycle.
 
 ## 📅 Roadmap for Implementation
-1.  **Week 1:** Scaffold Sandbox, **Qdrant Store**, and **Chronos Predictor**.
-2.  **Week 2:** Implement **Mem0 Persistent Wisdom**, Delta metrics, and RARE refactor.
-3.  **Week 3:** Deploy **LightRAG Graph**, AutoGluon Ensemble, and perform first "Self-Evolved" Report generation.
+1.  **Week 1:** Scaffold Sandbox, **Redpanda Event Bus**, and **Qdrant Vector Store**.
+2.  **Week 2:** Implement **dlt Loading**, Mem0 Wisdom, and RARE refactor.
+3.  **Week 3:** Deploy **Dagster Orchestrator**, LightRAG Graph, and perform first "Self-Evolved" meta-analysis.
 
 ---
-**Success Criteria:** The system autonomously predicts a market tipping point with 94% accuracy, supported by relational social proof and quantitative numerical forecasting.
+**Success Criteria:** The system handles 1,000+ signals/sec through Redpanda, autonomously improves its own accuracy to 94%, and provides a full observability dashboard via Dagster.
