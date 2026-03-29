@@ -39,12 +39,18 @@ Integrate recent breakthroughs from dair-ai ML research (2025-2026).
 ## 👥 Phase 7: High-Fidelity Social Simulation (SocioVerse)
 Upgrade the behavioral realism of synthetic agents based on April 2025 research.
 *   **Socio-Emotional Fingerprints:** Implement "Archetypes" (FOMO-Spreader, Skeptic, Whale) in `AgentFactory`.
-*   **Test-Time Reasoning (M1):** Implement deep-reasoning buffers in the orchestrator to verify narrative trajectories before final prediction.
+*   **Test-Time Reasoning (M1):** Implement deep-reasoning buffers in the orchestrator.
+
+## 📉 Phase 8: Operational Excellence (Cost & Performance Routing)
+Optimize the system for production-scale economics and temporal awareness.
+*   **Agent Router (RouteLLM):** Implement a router to direct simple tasks to cheap local models, reserving frontier LLMs for high-value reasoning.
+*   **Temporal Vision Fusion:** Upgrade video analysis to use joint temporal representations rather than static frames.
+*   **FP8 Attention (FlashAttention-3):** Implement asynchronous FP8 attention for real-time processing of long narrative histories.
 
 ## 📅 Roadmap for Implementation
 1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, and `src/skills/`.
 2.  **Week 2:** Implement handover logic, Delta metrics, and Socio-Emotional archetypes.
-3.  **Week 3:** First "Self-Evolved Calibration" with Test-Time Reasoning and Slerp merge.
+3.  **Week 3:** Deploy **Agent Router** and perform first "Self-Evolved Calibration" with Test-Time Reasoning and Slerp merge.
 
 ---
-**Success Criteria:** The system autonomously increases its own accuracy by >3%, reduces latency to <15ms, and generates qualitative "Narrative Archetype" reports.
+**Success Criteria:** The system autonomously increases its own accuracy by >3%, reduces operational API costs by 50%, and handles 10k+ context tokens at <15ms latency.
