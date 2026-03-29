@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
 type Overview = {
-  predictions: { total: number; last_24h: number };
+  predictions: { total: number; last_24h: number; by_variant?: Record<string, number> };
   accuracy: { current: number; trend: string; history: number[] };
   latency: { avg_ms: number; p95_ms: number; target_ms: number };
   cache: { hit_rate: number; hits: number; misses: number };
@@ -88,6 +88,17 @@ onUnmounted(() => {
         <span class="sub">{{ overview.cache.hits }} hits / {{ overview.cache.misses }} misses</span>
       </div>
     </div>
+    <div v-if="overview?.predictions.by_variant" class="variant-grid">
+      <div
+        v-for="(count, variant) in overview.predictions.by_variant"
+        :key="variant"
+        class="variant-card"
+      >
+        <span class="label">Variant</span>
+        <span class="value">{{ variant }}</span>
+        <span class="sub">{{ count }} predictions</span>
+      </div>
+    </div>
 
     <div v-if="fineTune" class="fine-tune">
       <h4>Fine-Tune Loop</h4>
@@ -146,6 +157,19 @@ header h3 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
+}
+.variant-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.variant-card {
+  background: rgba(0,0,0,0.2);
+  padding: 14px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .metric-card, .fine-card {
   background: rgba(0,0,0,0.2);

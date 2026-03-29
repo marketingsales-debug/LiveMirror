@@ -2,6 +2,21 @@
 
 ## Latest Handoff
 
+### 2026-03-29 — GPT-5.2-Codex (Variant Metrics Dashboard)
+
+**What was done:**
+- Added variant breakdown rendering in `frontend/src/components/MetricsDashboard.vue`.
+
+**Why:** Makes A/B and shadow traffic visible in the dashboard without extra tooling.
+
+**What to do next:**
+1. Enable `SHADOW_MODE_ENABLED=true` in staging.
+2. After burn-in, enable `AB_TEST_ENABLED=true` with a split (e.g., 0.10).
+
+**Blockers:** None.
+
+---
+
 ### 2026-03-29 — GPT-5.2-Codex (Production Hardening: Shadow + A/B)
 
 **What was done:**
