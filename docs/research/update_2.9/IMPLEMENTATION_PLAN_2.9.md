@@ -1,6 +1,6 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, AI2 Scientific Experimentation, Tiered Memory, Time-Series Intelligence, and Resilient Data Infrastructure.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, AI2 Scientific Experimentation, Tiered Memory, Time-Series Intelligence, Resilient Data Infrastructure, and Autonomous Agency.
 
 ---
 
@@ -8,7 +8,7 @@
 Establish a restricted environment where the **SelfMirror** agent board has full "Self-Modification" permissions.
 
 ## 🧪 Phase 2: The Multi-Agent Research Board
-Transition from a single agent to a specialized team (Researcher, Engineer, Analyst, EMA).
+Transition from a single agent to a specialized team (RA, EA, Analyst, EMA).
 
 ## 🧠 Phase 3: Persistent Evolutionary Memory (Mem0)
 Program the "Agent's Wisdom" to survive across sessions using **Mem0**.
@@ -50,15 +50,18 @@ Upgrade the "Brain" with high-velocity (Qdrant) and relational (LightRAG) memory
 Bridge the gap between narratives and raw market data using **Chronos** and **Merlion**.
 
 ## 🌊 Phase 16: Resilient Data Infrastructure (The Plumbing)
-Move from script-based collection to a production-grade decoupled event stream.
-*   **Event Bus:** Deploy **Redpanda** to handle all signal traffic with near-zero latency.
-*   **Schema Loading:** Use **dlt** to standardize the output of all 10 scrapers into a unified format.
-*   **Asset Orchestration:** Use **Dagster** to manage and monitor the end-to-end autonomous research lifecycle.
+Move from script-based collection to a production-grade decoupled event stream using **Redpanda**, **dlt**, and **Dagster**.
+
+## 🌐 Phase 17: Web-Aware Agency & Cloud Orchestration
+Expand the board's reach beyond APIs and fixed infrastructure.
+*   **Engineering Autonomy:** Upgrade the Engineer Agent (EA) with **OpenHands** planning loops for codebase-wide refactoring.
+*   **Web Navigation:** Use **WebVoyager** to verify signals by navigating non-API websites and gated forums.
+*   **SkyPilot Infrastructure:** Automate deployment of simulation workloads across Oracle, Kaggle, and Colab seamlessly.
 
 ## 📅 Roadmap for Implementation
-1.  **Week 1:** Scaffold Sandbox, **Redpanda Event Bus**, and **Qdrant Vector Store**.
-2.  **Week 2:** Implement **dlt Loading**, Mem0 Wisdom, and RARE refactor.
-3.  **Week 3:** Deploy **Dagster Orchestrator**, LightRAG Graph, and perform first "Self-Evolved" meta-analysis.
+1.  **Week 1:** Scaffold Sandbox, **Redpanda Event Bus**, and **SkyPilot Config**.
+2.  **Week 2:** Implement **OpenHands Engineering Loop**, Delta metrics, and RARE refactor.
+3.  **Week 3:** Deploy **WebVoyager Researcher**, AutoGluon Ensemble, and first "Self-Evolved" Report generation.
 
 ---
-**Success Criteria:** The system handles 1,000+ signals/sec through Redpanda, autonomously improves its own accuracy to 94%, and provides a full observability dashboard via Dagster.
+**Success Criteria:** The system autonomously navigates the web to verify signals, refactors its own architecture for 2x performance, and deploys itself to the cheapest available cloud provider without human intervention.
