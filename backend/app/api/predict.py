@@ -9,6 +9,7 @@ import asyncio
 import uuid
 import sys
 import os
+import time
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -21,6 +22,7 @@ from src.simulation.agents.factory import AgentFactory
 from src.simulation.calibration.calibrator import CalibrationEngine
 from src.learning.loop import LearningLoop
 from src.shared.types import Prediction, PredictionStatus
+from .metrics import record_prediction, record_cache_stats
 
 router = APIRouter()
 
@@ -88,6 +90,7 @@ async def start_prediction(request: PredictRequest, background_tasks: Background
 
 async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
     """Run the full simulation → debate → prediction pipeline."""
+    start_time = time.perf_counter()
     try:
         # 1. Create agents (synthetic for now — graph integration via ingest API)
         agents = [
@@ -135,6 +138,10 @@ async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
         _learning.register_prediction(prediction)
         _simulation_states[pred_id] = state
 
+        # 7. Record metrics for monitoring dashboard
+        latency_ms = (time.perf_counter() - start_time) * 1000
+        await record_prediction(latency_ms=latency_ms, confidence=prediction.confidence)
+
         _predictions[pred_id]["status"] = "completed"
         _predictions[pred_id]["prediction"] = {
             "prediction_id": prediction.prediction_id,
@@ -148,6 +155,7 @@ async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
             "simulation_rounds": prediction.simulation_rounds,
             "source_signals": prediction.source_signals_count,
             "narrative_stage": prediction.narrative_stage.value,
+            "latency_ms": round(latency_ms, 2),
         }
         _predictions[pred_id]["debate"] = {
             "direction": debate_result.direction,

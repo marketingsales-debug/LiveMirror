@@ -27,6 +27,8 @@ from src.ingestion.platforms.news import NewsIngester
 from src.ingestion.platforms.tiktok import TikTokIngester
 from src.ingestion.platforms.instagram import InstagramIngester
 from src.shared.types import Platform
+from .metrics import record_cache_stats
+from .metrics import record_cache_stats
 
 router = APIRouter()
 
@@ -109,6 +111,15 @@ async def _run_ingestion_bg(job_id: str, topic: str, max_results: int) -> None:
     pipeline = _get_pipeline()
     try:
         result = await pipeline.run(topic, max_results_per_platform=max_results)
+        
+        # Record cache stats for monitoring
+        cache_stats = pipeline.fusion.cache.stats()
+        await record_cache_stats(
+            hits=cache_stats["hits"], 
+            misses=cache_stats["misses"], 
+            size=cache_stats["size"]
+        )
+
         _jobs[job_id]["status"] = "completed"
         _jobs[job_id]["result"] = {
             "query": result["query"],
