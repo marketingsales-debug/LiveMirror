@@ -1,6 +1,6 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, AI2 Scientific Experimentation, Tiered Memory, Time-Series Intelligence, Resilient Data Infrastructure, Autonomous Agency, Generative Social Simulation, and AI Observability.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, AI2 Scientific Experimentation, Tiered Memory, Time-Series Intelligence, Resilient Data Infrastructure, Autonomous Agency, Generative Social Simulation, AI Observability, and High-Performance Visualization.
 
 ---
 
@@ -8,13 +8,13 @@
 Establish a restricted environment where the **SelfMirror** agent board has full "Self-Modification" permissions.
 
 ## 🧪 Phase 2: The Multi-Agent Research Board
-Transition from a single agent to a specialized team based on **EvoScientist** roles (RA, EA, Analyst, EMA).
+Transition from a single agent to a specialized team (RA, EA, Analyst, EMA).
 
 ## 🧠 Phase 3: Persistent Evolutionary Memory (Mem0)
 Program the "Agent's Wisdom" to survive across sessions using **Mem0**.
 
 ## 🛡️ Phase 4: The Stability Layer (Weight Interpolation)
-Use **Slerp** or weight blending to merge AI-optimized weights without regression.
+Use **Slerp** or weight blending to merge AI-optimized weights.
 
 ## 🛠️ Phase 5: Modular Skill Architecture (`src/skills/`)
 Give the board specific "Expertise Packs" (Signal Tournament, Ablation, Diagnostic Flows).
@@ -35,10 +35,10 @@ Integrate local vision processing for real-time multimodal analysis.
 Transform to an "Open-Book" architecture, decoupling facts from reasoning.
 
 ## ⏱️ Phase 11: Z1 Shifted-Thinking Engine
-Implement two-stage inference (Trajectory + Synthesis) with variable compute budgets.
+Implement two-stage inference (Trajectory + Synthesis).
 
 ## ✅ Phase 12: Autonomous R&D Verification (PaperBench)
-Establish "Human-Level" standards with Golden Rubrics and reproduction pipelines.
+Establish "Human-Level" standards with Golden Rubrics.
 
 ## 🔬 Phase 13: Scientific Experimentation & Reporting (CodeScientist)
 Automate the end-to-end scientific method for architectural discovery.
@@ -47,25 +47,27 @@ Automate the end-to-end scientific method for architectural discovery.
 Upgrade the "Brain" with high-velocity (Qdrant) and relational (LightRAG) memory.
 
 ## 📈 Phase 15: Time-Series & Numerical Intelligence
-Bridge the gap between narratives and raw market data using **Chronos** and **Merlion**.
+Bridge the gap between narratives and market data using **Chronos** and **Merlion**.
 
 ## 🌊 Phase 16: Resilient Data Infrastructure (The Plumbing)
 Move to a decoupled event stream using **Redpanda**, **dlt**, and **Dagster**.
 
 ## 🌐 Phase 17: Web-Aware Agency & Cloud Orchestration
-Expand reach beyond APIs with **OpenHands** engineering loops and **SkyPilot** multi-cloud automation.
+Expand reach with **OpenHands** engineering and **SkyPilot** multi-cloud automation.
 
 ## 👁️‍🗨️ Phase 18: AI Observability & Programmatic Optimization (DSPy)
-Ensure the system is monitored, cost-effective, and self-optimizing.
-*   **Prompt Optimization (DSPy):** Transition from manual prompting to compiled agent signatures that self-optimize based on accuracy metrics.
-*   **Agent Flight Recorder:** Use **AgentOps** to track all multi-agent board interactions, costs, and reasoning trajectories.
-*   **RAG Evaluation:** Integrate **Ragas** to score the quality of retrieved historical narratives.
-*   **WandB Experiment Tracking:** Log all generations of the "Autonomous Scientist" to visualize accuracy growth (86% -> 94%).
+Implement **DSPy Agent Signatures**, **AgentOps** monitoring, and **WandB** tracking.
+
+## 🎨 Phase 19: High-Performance Visualization (The War-Room)
+Transform the system into a predictive command center.
+*   **Contagion Graph:** Use **React Flow** to visualize agent networks and manipulation paths.
+*   **Real-Time Command Center:** Deploy **Grafana** dashboards connected to the production Redpanda topics.
+*   **3D Narrative Galaxy:** Implement a **Three.js** semantic space where narratives glow and pulsate based on volatility.
 
 ## 📅 Roadmap for Implementation
-1.  **Week 1:** Scaffold Sandbox, **Redpanda**, and **DSPy Agent Signatures**.
-2.  **Week 2:** Implement **AgentOps Monitoring**, Delta metrics, and RARE refactor.
-3.  **Week 3:** Deploy **AutoGluon Ensemble**, WandB Tracking, and first "Self-Evolved" Report.
+1.  **Week 1:** Scaffold Sandbox, **Redpanda**, and **Grafana Dashboards**.
+2.  **Week 2:** Implement **React Flow Graph**, Delta metrics, and RARE refactor.
+3.  **Week 3:** Deploy **Three.js Galaxy**, AutoGluon Ensemble, and first "Self-Evolved" meta-analysis.
 
 ---
-**Success Criteria:** The system autonomously increases accuracy to 94% while providing a full "Black Box" recording of its own evolution and a 50% reduction in frontier LLM costs.
+**Success Criteria:** The system autonomously predicts social contagion events with 94% accuracy, visualized in a real-time 3D War-Room with full multi-cloud operational agency.
