@@ -19,6 +19,9 @@ from ..ingestion.manager import IngestionManager
 from ..ingestion.scorer import SignalScorer
 from ..analysis.pipeline import AnalysisPipeline, AnalysisResult
 from ..graph.knowledge.graph import KnowledgeGraph
+from ..fusion.pipeline import FusionPipeline
+from ..fusion.types import FusionConfig
+from ..fusion.batch.processor import BatchProcessor
 
 
 class LiveMirrorPipeline:
@@ -41,6 +44,8 @@ class LiveMirrorPipeline:
         self.scorer = scorer or SignalScorer()
         self.analysis = analysis or AnalysisPipeline()
         self.graph = graph or KnowledgeGraph()
+        self.fusion = FusionPipeline(FusionConfig())
+        self.batch_processor = BatchProcessor(self.fusion, batch_size=self.fusion.config.batch_size)
         self._last_run_stats = {}
 
     def register_ingester(self, ingester) -> None:
@@ -83,10 +88,27 @@ class LiveMirrorPipeline:
         scored = self.scorer.score_all(raw_signals, query)
         timings["scoring_ms"] = (datetime.now() - t1).total_seconds() * 1000
 
-        # --- 3. Analyze each signal through Gemini's pipeline ---
+        # --- 3. Multimodal Analysis (Parallel Batch Processing) ---
         t2 = datetime.now()
         analysis_results: List[AnalysisResult] = []
-        for s in scored[:50]:  # cap at top 50 to avoid overload
+        
+        # Prepare signals for batch processing
+        signals_to_process = []
+        for s in scored[:50]:
+            signals_to_process.append({
+                "content": s.signal.content,
+                "platform": s.signal.platform.value,
+                "engagement": s.signal.engagement,
+                "metadata": {"signal_id": s.signal.id, "url": getattr(s.signal, 'url', None)}
+            })
+
+        # Run batch analysis
+        fusion_results = await self.batch_processor.process_batch(signals_to_process)
+
+        # Post-process results (legacy analysis + events)
+        for s, fusion_result in zip(scored[:50], fusion_results):
+            # Legacy analysis (sequential as it's typically LLM-bound/rate-limited)
+            # TODO: Move legacy analysis into BatchProcessor in next iteration
             cross_platform = s.cross_platform_score > 0
             age_hours = self.scorer._hours_since(s.signal.timestamp)
             result = self.analysis.process(s, age_hours=age_hours, cross_platform=cross_platform)
@@ -94,6 +116,8 @@ class LiveMirrorPipeline:
 
             if emit_events:
                 await self._emit_analysis(result)
+                if fusion_result:
+                    await self._emit_fusion(fusion_result, s.signal.id)
 
         timings["analysis_ms"] = (datetime.now() - t2).total_seconds() * 1000
 
@@ -176,5 +200,26 @@ class LiveMirrorPipeline:
             top_score = scored[0].composite_score if scored else 0.0
             platforms = len({s.signal.platform for s in scored})
             await emit_ingestion_complete(query, len(scored), platforms, top_score)
+        except ImportError:
+            pass
+
+    async def _emit_fusion(self, result, signal_id):
+        """Emit multimodal fusion results to the frontend."""
+        try:
+            from backend.app.api.stream import emit_fusion_result, emit_audience_prediction
+            # Emit consensus
+            await emit_fusion_result(
+                signal_id=signal_id,
+                direction=result.consensus_direction,
+                confidence=result.consensus_confidence,
+                modalities=list(result.embeddings.keys()),
+            )
+            # Emit per-audience predictions
+            for seg_pred in result.segment_predictions:
+                await emit_audience_prediction(
+                    segment=seg_pred.segment_name,
+                    direction=seg_pred.direction,
+                    confidence=seg_pred.confidence,
+                )
         except ImportError:
             pass

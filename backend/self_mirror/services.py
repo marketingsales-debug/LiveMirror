@@ -35,6 +35,35 @@ class FileService:
         full_path.write_text(content, encoding="utf-8")
         return True
 
+    def backup_file(self, file_path: str) -> Optional[str]:
+        """Create a temporary backup of a file. Returns backup path relative to base."""
+        full_path = self._safe_path(file_path)
+        if not full_path.exists():
+            return None
+        backup_path = full_path.with_suffix(full_path.suffix + ".bak")
+        backup_path.write_text(full_path.read_text(encoding="utf-8"), encoding="utf-8")
+        return os.path.relpath(backup_path, self.base_path)
+
+    def restore_file(self, file_path: str) -> bool:
+        """Restore a file from its backup and delete the backup."""
+        full_path = self._safe_path(file_path)
+        backup_path = full_path.with_suffix(full_path.suffix + ".bak")
+        if not backup_path.exists():
+            return False
+        full_path.write_text(backup_path.read_text(encoding="utf-8"), encoding="utf-8")
+        backup_path.unlink()
+        return True
+
+    def delete_backup(self, file_path: str) -> bool:
+        """Delete the backup file without restoring."""
+        full_path = self._safe_path(file_path)
+        backup_path = full_path.with_suffix(full_path.suffix + ".bak")
+        if backup_path.exists():
+            backup_path.unlink()
+            return True
+        return False
+
+
     def list_files(self, directory: str = ".") -> List[str]:
         """List all files in a directory."""
         full_path = self._safe_path(directory)

@@ -20,9 +20,7 @@ class TestAudioEncoder:
         # available() may be False if deps missing, but no error
         assert isinstance(encoder.available(), bool)
     
-    @patch('src.fusion.encoders.audio.AudioEncoder._use_whisper', True)
-    @patch('src.fusion.encoders.audio.AudioEncoder._whisper_model', MagicMock())
-    @patch('src.fusion.encoders.audio.AudioEncoder._use_librosa', True)
+    @patch('src.fusion.encoders.audio.AudioEncoder._whisper_model', MagicMock(), create=True)
     def test_encode_with_mocked_deps(self):
         """Encode audio with mocked Whisper and librosa."""
         encoder = AudioEncoder()
@@ -64,8 +62,14 @@ class TestAudioEncoder:
         
         # With transcript only
         conf1 = encoder._compute_confidence("Hello world", {})
-        assert 0.5 <= conf1 <= 1.0
+        assert 0.8 == pytest.approx(conf1)
         
-        # With prosody
+        # With prosody only
         conf2 = encoder._compute_confidence("", {"pitch": 0.1, "energy": 0.5})
-        assert conf1 <= conf2  # Should be higher with more features
+        assert 0.7 == pytest.approx(conf2)
+        
+        # With both (more features)
+        conf3 = encoder._compute_confidence("Hello", {"pitch": 0.1})
+        assert conf1 < conf3
+        assert conf2 < conf3
+        assert 1.0 == pytest.approx(conf3)

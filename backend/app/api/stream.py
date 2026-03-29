@@ -247,3 +247,44 @@ async def emit_agent_action(action_type: str, details: Dict[str, Any]) -> None:
         "action_type": action_type,
         "details": details,
     })
+
+
+async def emit_fusion_result(
+    signal_id: str,
+    direction: float,
+    confidence: float,
+    modalities: list[str],
+) -> None:
+    """Emit multimodal fusion consensus for a signal."""
+    await event_bus.publish("fusion_result", {
+        "signal_id": signal_id,
+        "direction": direction,
+        "confidence": confidence,
+        "modalities": modalities,
+    })
+
+
+async def emit_audience_prediction(
+    segment: str,
+    direction: float,
+    confidence: float,
+) -> None:
+    """Emit a prediction for a specific audience segment."""
+    await event_bus.publish("audience_prediction", {
+        "segment": segment,
+        "direction": direction,
+        "confidence": confidence,
+    })
+
+
+async def emit_temporal_update(
+    momentum: float,
+    velocity: float,
+    acceleration: float,
+) -> None:
+    """Emit system-wide temporal dynamic updates."""
+    await event_bus.publish("temporal_update", {
+        "momentum": momentum,
+        "velocity": velocity,
+        "acceleration": acceleration,
+    })

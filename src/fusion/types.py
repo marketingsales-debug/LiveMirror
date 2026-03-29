@@ -38,11 +38,17 @@ class NarrativeStateVector:
     text_embedding: Optional[ModalityEmbedding] = None
     audio_embedding: Optional[ModalityEmbedding] = None
     video_embedding: Optional[ModalityEmbedding] = None
+    sentiment_embedding: Optional[ModalityEmbedding] = None
     
     # Fused cross-modal representation
     fused_embedding: Optional[np.ndarray] = None  # shape (384,)
     
-    # Metadata
+    # Advanced Analysis (Roadmap Phase 4 & 5)
+    intent: str = "informational"
+    credibility_score: float = 0.5
+    manipulation_risk: float = 0.0
+    
+    # Contextual data
     platform: str = ""
     engagement_score: float = 0.0
     url: Optional[str] = None
@@ -56,6 +62,8 @@ class NarrativeStateVector:
             mods.append("audio")
         if self.video_embedding is not None:
             mods.append("video")
+        if self.sentiment_embedding is not None:
+            mods.append("sentiment")
         return mods
     
     def get_available_embeddings(self) -> List[np.ndarray]:
@@ -67,6 +75,8 @@ class NarrativeStateVector:
             embs.append(self.audio_embedding.embedding)
         if self.video_embedding is not None:
             embs.append(self.video_embedding.embedding)
+        if self.sentiment_embedding is not None:
+            embs.append(self.sentiment_embedding.embedding)
         return embs
 
 
@@ -174,6 +184,7 @@ class FusionConfig:
     enable_text: bool = True
     enable_audio: bool = True
     enable_video: bool = True
+    enable_sentiment: bool = True
     
     # Cross-modal attention
     num_attention_heads: int = 4
@@ -190,6 +201,14 @@ class FusionConfig:
     # Feature flags
     use_sarcasm_detection: bool = True
     use_spam_scoring: bool = True
+    
+    # Efficiency Foundation (Roadmap Phase 1)
+    embedding_cache_size: int = 1000
+    batch_size: int = 16
+    
+    # Accuracy Phase (Roadmap Phase 2)
+    use_learned_attention: bool = True  # Enable learned transformer
+    fine_tune_frequency: int = 100       # Fine-tune every 100 signals
     
     def __post_init__(self):
         """Set default audience segments if not provided."""

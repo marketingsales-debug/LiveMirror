@@ -6,18 +6,23 @@ Integrates encoders, attention, temporal, audiences, and noise detection.
 """
 
 import numpy as np
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from datetime import datetime
 
 from .types import NarrativeStateVector, MultiAudiencePrediction, FusionConfig
 from .encoders.text import TextEncoder
 from .encoders.audio import AudioEncoder
 from .encoders.video import VideoEncoder
+from .encoders.sentiment import SentimentEncoder
+from .analysis.intent import IntentDetector
+from .reasoning import CrossModalReasoning
 from .attention.cross_modal import CrossModalTransformer
+from .attention.learned_cross_modal import LearnedCrossModalAttention
 from .attention.temporal import TemporalTransformer
 from .context.window import ContextWindowManager
 from .audiences.heads import MultiAudiencePredictionHead
 from .noise import NoiseDetector
+from .cache.embedding_cache import EmbeddingCache
 
 
 class FusionPipeline:
@@ -31,12 +36,22 @@ class FusionPipeline:
         self.text_encoder = TextEncoder()
         self.audio_encoder = AudioEncoder()
         self.video_encoder = VideoEncoder()
+        self.sentiment_encoder = SentimentEncoder()
+        
+        # Advanced Analysis layers
+        self.intent_detector = IntentDetector()
+        self.reasoning_engine = CrossModalReasoning()
         
         # Fusion layers
-        self.cross_modal = CrossModalTransformer(
+        self.cross_modal_fixed = CrossModalTransformer(
             dim=self.config.embedding_dim,
             num_heads=self.config.num_attention_heads,
             num_layers=self.config.attention_layers,
+        )
+        self.cross_modal_learned = LearnedCrossModalAttention(
+            embedding_dim=self.config.embedding_dim,
+            num_heads=8,  # Roadmap: 8 heads
+            num_layers=3, # Roadmap: 3 layers
         )
         self.temporal_transformer = TemporalTransformer()
         self.context_manager = ContextWindowManager(
@@ -50,6 +65,9 @@ class FusionPipeline:
         
         # Noise detection
         self.noise_detector = NoiseDetector()
+        
+        # Cache (Efficiency Foundation)
+        self.cache = EmbeddingCache(max_size=self.config.embedding_cache_size)
     
     def process_signal(
         self,
@@ -79,25 +97,57 @@ class FusionPipeline:
             embeddings = {}
             
             if self.config.enable_text:
-                text_emb = self.text_encoder.encode(content)
-                if text_emb:
-                    embeddings["text"] = text_emb.embedding
+                # Check cache first (7x latency reduction)
+                cached_text = self.cache.get(content, "text")
+                if cached_text is not None:
+                    embeddings["text"] = cached_text
+                else:
+                    text_emb = self.text_encoder.encode(content)
+                    if text_emb:
+                        embeddings["text"] = text_emb.embedding
+                        self.cache.set(content, text_emb.embedding, "text")
             
             if self.config.enable_audio and audio_source:
-                audio_emb = self.audio_encoder.encode(audio_source)
-                if audio_emb:
-                    embeddings["audio"] = audio_emb.embedding
+                cached_audio = self.cache.get(audio_source, "audio")
+                if cached_audio is not None:
+                    embeddings["audio"] = cached_audio
+                else:
+                    audio_emb = self.audio_encoder.encode(audio_source)
+                    if audio_emb:
+                        embeddings["audio"] = audio_emb.embedding
+                        self.cache.set(audio_source, audio_emb.embedding, "audio")
             
             if self.config.enable_video and video_source:
-                video_emb = self.video_encoder.encode(video_source, metadata=metadata)
-                if video_emb:
-                    embeddings["video"] = video_emb.embedding
+                cached_video = self.cache.get(video_source, "video")
+                if cached_video is not None:
+                    embeddings["video"] = cached_video
+                else:
+                    video_emb = self.video_encoder.encode(video_source, metadata=metadata)
+                    if video_emb:
+                        embeddings["video"] = video_emb.embedding
+                        self.cache.set(video_source, video_emb.embedding, "video")
+            
+            if self.config.enable_sentiment:
+                cached_sentiment = self.cache.get(content, "sentiment")
+                if cached_sentiment is not None:
+                    embeddings["sentiment"] = cached_sentiment
+                else:
+                    sentiment_res = self.sentiment_encoder.encode(content)
+                    if sentiment_res:
+                        embeddings["sentiment"] = sentiment_res["embedding"]
+                        self.cache.set(content, sentiment_res["embedding"], "sentiment")
             
             if not embeddings:
                 return None
             
             # 2. Cross-modal fusion
-            fused_embedding = self.cross_modal.fuse(embeddings)
+            if self.config.use_learned_attention:
+                fused_embedding = self.cross_modal_learned(embeddings)
+            else:
+                fused_embedding = self.cross_modal_fixed.fuse(embeddings)
+            
+            # 2b. Compute Modality Alignment (Reasoning Phase)
+            alignment_report = self.reasoning_engine.compute_modality_alignment(embeddings)
             
             # 3. Create narrative state
             state = NarrativeStateVector(
@@ -108,6 +158,28 @@ class FusionPipeline:
                 engagement_score=engagement.get("likes", 0) if engagement else 0.0,
                 url=metadata.get("url") if metadata else None,
             )
+            
+            # Map modality-specific embeddings for state persistence
+            if "text" in embeddings:
+                from .types import ModalityEmbedding
+                state.text_embedding = ModalityEmbedding("text", embeddings["text"])
+            if "audio" in embeddings:
+                from .types import ModalityEmbedding
+                state.audio_embedding = ModalityEmbedding("audio", embeddings["audio"])
+            if "video" in embeddings:
+                from .types import ModalityEmbedding
+                state.video_embedding = ModalityEmbedding("video", embeddings["video"])
+            if "sentiment" in embeddings:
+                from .types import ModalityEmbedding
+                state.sentiment_embedding = ModalityEmbedding("sentiment", embeddings["sentiment"])
+            
+            # 3b. Intent and Credibility Detection
+            intent_res = self.intent_detector.determine_intent(
+                content, metadata.get("author", {}) if metadata else {}
+            )
+            state.intent = intent_res["intent"]
+            state.credibility_score = intent_res["credibility"]
+            state.manipulation_risk = alignment_report["conflict"]
             
             # Add to context
             self.context_manager.add_state(state)
@@ -128,19 +200,22 @@ class FusionPipeline:
                 if platform else 0.0
             }
             
-            # 6. Multi-audience prediction
+            # 4. Audience prediction
             prediction = self.prediction_head.predict(
                 fused_embedding,
                 temporal_state,
-                platform_signals,
+                platform_signals
             )
             
-            # 7. Noise adjustment
-            if self.config.use_sarcasm_detection or self.config.use_spam_scoring:
+            # 4b. Apply Reasoning Penalty/Boost
+            prediction = self.reasoning_engine.final_prediction_with_reasoning(
+                prediction, alignment_report
+            )
+            
+            # Post-process with noise detection
+            if self.config.use_spam_scoring:
                 adjusted_conf = self.noise_detector.adjust_confidence(
-                    prediction.consensus_confidence,
-                    content,
-                    engagement or {},
+                    prediction.consensus_confidence, content, engagement or {}
                 )
                 prediction.consensus_confidence = adjusted_conf
             
@@ -148,6 +223,16 @@ class FusionPipeline:
         except Exception:
             return None
     
+    def fine_tune_attention(self, history: List[Dict[str, Any]], outcomes: List[np.ndarray]):
+        """
+        Fine-tune the learned attention weights using historical results.
+        
+        Args:
+            history: List of signal dicts (content, audio, video)
+            outcomes: List of target embeddings (384,)
+        """
+        self.cross_modal_learned.fine_tune_on_data(history, outcomes)
+            
     def _create_default_temporal_state(self, embedding: np.ndarray):
         """Create default temporal state for first signal."""
         from .types import TemporalState

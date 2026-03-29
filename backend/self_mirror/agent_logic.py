@@ -62,28 +62,97 @@ class AgentLoop:
 
     async def run_goal(self, goal: str, context_files: List[str] = []) -> List[str]:
         """
-        Execute a development goal autonomously.
-        
-        Returns a stream of thoughts (for SSE).
+        Execute a development goal autonomously with automated verification and rollbacks.
         """
-        await _emit_thought(f"New goal received: {goal}", step="received")
+        await _emit_thought(f"Initiating goal: {goal}", step="received")
         
-        # 1. Gather context
-        content = ""
+        # 1. Gather initial context
+        system_prompt = """
+You are the SelfMirror Autonomous IDE Agent. Your goal is to help the user develop and maintain this repository.
+You operate in a loop: THOUGHT -> ACTION -> VERIFICATION.
+
+For every step, you MUST respond in the following format:
+THOUGHT: <your reasoning about the current state and next steps>
+ACTION: { "type": "WRITE_FILE|READ_FILE|RUN_COMMAND", "path": "file_path", "content": "file_content", "command": "shell_command" }
+VERIFY: <the shell command to run to verify the success of your action, e.g. 'pytest' or 'npm run lint'>
+
+If you have completed the goal, respond with:
+THOUGHT: Goal achieved.
+ACTION: { "type": "COMPLETE" }
+
+Safety Rules:
+- Never delete core project files.
+- Always use the VERIFY step to ensure no regressions.
+- If a verification fails, the system will automatically roll back your change.
+"""
+        
+        context_content = ""
         for f in context_files:
-            await _emit_thought(f"Reading file for context: {f}", step="context")
-            content += f"\nFILE: {f}\n{self.files.read_file(f)}\n"
-        
-        # 2. System Prompting
-        # ... (keep existing prompt code) ...
+            await _emit_thought(f"Reading {f} for context...", step="context")
+            content = self.files.read_file(f)
+            context_content += f"\nFILE: {f}\n{content}\n"
 
-        await _emit_thought("Analyzing requirements and planning code changes...", step="thinking")
-        response = await self.llm.chat(messages)
-        await _emit_thought(response, step="thought")
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context files:\n{context_content}\n\nGoal: {goal}"}
+        ]
 
-        # 4. Parse and Execute
-        if "WRITE_FILE" in response:
-            await _emit_action("WRITE_FILE", {"details": "Applying suggested file change..."})
-            # Logic for actual write would go here...
+        # 2. Reasoning Loop
+        max_iterations = 5
+        for i in range(max_iterations):
+            await _emit_thought(f"Reasoning loop iteration {i+1}/{max_iterations}...", step="thinking")
+            response = await self.llm.chat(messages)
+            await _emit_thought(response, step="thought")
+            messages.append({"role": "assistant", "content": response})
 
-        return [response]
+            # Parse Action
+            try:
+                action_line = [l for l in response.split('\n') if l.startswith('ACTION:')][0]
+                action_data = json.loads(action_line.replace('ACTION:', '').strip())
+                action_type = action_data.get("type")
+            except Exception as e:
+                await _emit_thought(f"Failed to parse action: {str(e)}", step="error")
+                break
+
+            if action_type == "COMPLETE":
+                await _emit_thought("Goal completed successfully.", step="done")
+                break
+
+            # Execute Action
+            if action_type == "READ_FILE":
+                path = action_data.get("path")
+                await _emit_action("READ_FILE", {"path": path})
+                result = self.files.read_file(path)
+                messages.append({"role": "user", "content": f"READ_FILE Result:\n{result}"})
+
+            elif action_type == "WRITE_FILE":
+                path = action_data.get("path")
+                content = action_data.get("content")
+                verify_cmd = [l for l in response.split('\n') if l.startswith('VERIFY:')][0].replace('VERIFY:', '').strip()
+                
+                await _emit_action("WRITE_FILE", {"path": path, "verify": verify_cmd})
+                
+                # Backup -> Write -> Verify
+                self.files.backup_file(path)
+                self.files.write_file(path, content)
+                
+                await _emit_thought(f"Verifying change with: {verify_cmd}", step="verifying")
+                check = self.exec.run_command(verify_cmd)
+                
+                if check["success"]:
+                    await _emit_thought("Verification PASSED.", step="success")
+                    self.files.delete_backup(path)
+                    messages.append({"role": "user", "content": f"SUCCESS: {verify_cmd} passed."})
+                else:
+                    await _emit_thought(f"Verification FAILED: {check['stderr']}. Rolling back...", step="rollback")
+                    self.files.restore_file(path)
+                    messages.append({"role": "user", "content": f"FAILURE: {verify_cmd} failed. File rolled back. Error: {check['stderr']}"})
+
+            elif action_type == "RUN_COMMAND":
+                cmd = action_data.get("command")
+                await _emit_action("RUN_COMMAND", {"command": cmd})
+                res = self.exec.run_command(cmd)
+                messages.append({"role": "user", "content": f"RUN_COMMAND Result (success={res['success']}):\n{res['stdout']}\n{res['stderr']}"})
+
+        return [m["content"] for m in messages if m["role"] == "assistant"]
+

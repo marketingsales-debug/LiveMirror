@@ -26,7 +26,7 @@ function connectStream() {
   const url = `${import.meta.env.VITE_API_BASE_URL}/api/stream/events`;
   eventSource = new EventSource(url);
 
-  eventSource.addEventListener('agent_thought', (event: any) => {
+  eventSource.addEventListener('agent_thought', (event: MessageEvent) => {
     const payload = JSON.parse(event.data);
     thoughts.value.unshift({
       id: Math.random().toString(36).substr(2, 9),

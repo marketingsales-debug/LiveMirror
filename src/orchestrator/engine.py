@@ -71,6 +71,7 @@ class LiveMirrorEngine:
         emit_sse: bool = True,
         platforms: Optional[List[Platform]] = None,
         max_signals_per_platform: int = 50,
+        use_fusion: bool = True,
     ) -> Dict[str, Any]:
         """
         Run the full prediction cycle.
@@ -139,6 +140,23 @@ class LiveMirrorEngine:
                 "timing": timings,
             }
 
+        # --- Stage 3b: Emit Temporal Dynamics (Global) ---
+        if emit_sse and use_fusion:
+            try:
+                from backend.app.api.stream import emit_temporal_update
+                import numpy as np
+                temporal_state = self.pipeline.fusion.temporal_transformer.compute_temporal_state(
+                    self.pipeline.fusion.context_manager.get_recent()
+                )
+                if temporal_state:
+                    await emit_temporal_update(
+                        momentum=temporal_state.momentum,
+                        velocity=float(np.linalg.norm(temporal_state.velocity)),
+                        acceleration=float(np.linalg.norm(temporal_state.acceleration)),
+                    )
+            except (ImportError, Exception):
+                pass
+
         # --- Stage 4: Debate ---
         t3 = datetime.now()
         debate_result = self.debate.debate(state)
@@ -176,6 +194,7 @@ class LiveMirrorEngine:
             "prediction": prediction,
             "simulation_state": state,
             "debate_result": debate_result,
+            "signals": scored_signals,  # Store signals for future fine-tuning
         }
 
         return {
@@ -217,6 +236,17 @@ class LiveMirrorEngine:
         """
         stored = self._predictions.get(prediction_id)
         sim_state = stored["simulation_state"] if stored else None
+        signals = stored["signals"] if stored else []
+
+        # --- Trigger Fusion Fine-Tuning (Roadmap Phase 2) ---
+        if signals and self.pipeline.fusion.config.use_learned_attention:
+            # Simple heuristic: target is a bullish (+1) or bearish (-1) vector
+            # based on the validated accuracy and direction.
+            # (In a real scenario, this would be a high-dim embedding of the outcome)
+            direction_vec = np.ones(384, dtype=np.float32) if accuracy > 0.5 else np.zeros(384, dtype=np.float32)
+            inputs = [{"text": s.signal.content} for s in signals[:10]]
+            targets = [direction_vec for _ in range(len(inputs))]
+            self.pipeline.fusion.fine_tune_attention(inputs, targets)
 
         return self.learning.validate_and_calibrate(
             prediction_id=prediction_id,
