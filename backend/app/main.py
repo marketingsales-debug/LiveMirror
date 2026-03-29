@@ -13,6 +13,7 @@ from .api.ingest import router as ingest_router
 from .api.predict import router as predict_router
 from .api.simulate import router as simulate_router
 from .api.stream import router as stream_router
+from .api.metrics import router as metrics_router
 from backend.self_mirror.main import router as self_mirror_router
 
 
@@ -82,4 +83,5 @@ app.include_router(ingest_router, prefix="/api/ingest", tags=["ingestion"])
 app.include_router(predict_router, prefix="/api/predict", tags=["prediction"])
 app.include_router(simulate_router, prefix="/api/simulate", tags=["simulation"])
 app.include_router(stream_router, prefix="/api/stream", tags=["real-time"])
+app.include_router(metrics_router, prefix="/api/metrics", tags=["monitoring"])
 app.include_router(self_mirror_router, prefix="/api/self-mirror", tags=["autonomous"])
