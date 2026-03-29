@@ -1,6 +1,6 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, and Frontier Algorithmic stabilizers.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, and Edge-Vision.
 
 ---
 
@@ -43,14 +43,19 @@ Upgrade the behavioral realism of synthetic agents based on April 2025 research.
 
 ## 📉 Phase 8: Operational Excellence (Cost & Performance Routing)
 Optimize the system for production-scale economics and temporal awareness.
-*   **Agent Router (RouteLLM):** Implement a router to direct simple tasks to cheap local models, reserving frontier LLMs for high-value reasoning.
-*   **Temporal Vision Fusion:** Upgrade video analysis to use joint temporal representations rather than static frames.
-*   **FP8 Attention (FlashAttention-3):** Implement asynchronous FP8 attention for real-time processing of long narrative histories.
+*   **Agent Router (RouteLLM):** Direct simple tasks to cheap local models.
+*   **Temporal Vision Fusion:** Upgrade video analysis to use joint temporal representations.
+*   **FP8 Attention (FlashAttention-3):** Implement asynchronous FP8 attention.
+
+## 👁️ Phase 9: Edge-Vision Intelligence (Moondream)
+Integrate local, ultra-efficient vision processing for real-time multimodal analysis.
+*   **Local Vision Encoder:** Use Moondream 0.5B to extract visual sentiment and body language cues at $0 cost.
+*   **Agent Sight:** Give the **SelfMirror** board the ability to "see" screenshots of the dashboard to autonomously debug frontend issues.
 
 ## 📅 Roadmap for Implementation
 1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, and `src/skills/`.
-2.  **Week 2:** Implement handover logic, Delta metrics, and Socio-Emotional archetypes.
-3.  **Week 3:** Deploy **Agent Router** and perform first "Self-Evolved Calibration" with Test-Time Reasoning and Slerp merge.
+2.  **Week 2:** Implement handover logic, Delta metrics, and Moondream vision encoder.
+3.  **Week 3:** Deploy **Agent Router** and perform first "Self-Evolved Calibration" with Test-Time Reasoning.
 
 ---
-**Success Criteria:** The system autonomously increases its own accuracy by >3%, reduces operational API costs by 50%, and handles 10k+ context tokens at <15ms latency.
+**Success Criteria:** The system autonomously increases its own accuracy by >3%, reduces operational costs by 50%, and performs real-time multimodal analysis (Text+Audio+Video) on consumer-grade hardware.
