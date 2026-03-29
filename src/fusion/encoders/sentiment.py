@@ -21,19 +21,26 @@ class SentimentEncoder:
     outperforms generic sentiment models in market contexts.
     """
     
-    def __init__(self, model_name: str = "ProsusAI/finbert"):
+    def __init__(
+        self,
+        model_name: str = "ProsusAI/finbert",
+        model: Optional[Any] = None,
+        tokenizer: Optional[Any] = None,
+        device: Optional[str] = None,
+    ):
         """Initialize FinBERT model and tokenizer."""
         self.model_name = model_name
-        self._model = None
-        self._tokenizer = None
+        self._model = model
+        self._tokenizer = tokenizer
         self._available = None
+        self.device = torch.device(device) if device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        # Mapping: 0: neutral, 1: positive, 2: negative
-        # (FinBERT's specific index mapping)
-        self.labels = {0: "bullish", 1: "bearish", 2: "neutral"}
+        # Mapping: 0: neutral, 1: positive, 2: negative (FinBERT spec)
+        self.labels = {0: "neutral", 1: "bullish", 2: "bearish"}
         
         # Projection layer to match 384-dim fusion standard
-        self.projection = nn.Linear(3, 384) # Using logits as features (simplification)
+        self.projection = nn.Linear(3, 384)  # Using logits as features (simplification)
+        self.projection.to(self.device)
         
     def available(self) -> bool:
         """Check if model and weights are loaded correctly."""
@@ -41,9 +48,12 @@ class SentimentEncoder:
             return self._available
             
         try:
-            if self._model is None:
+            if self._model is None or self._tokenizer is None:
                 self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
                 self._model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
+            if hasattr(self._model, "to"):
+                self._model.to(self.device)
+            if hasattr(self._model, "eval"):
                 self._model.eval()
             self._available = True
         except Exception:
@@ -63,7 +73,14 @@ class SentimentEncoder:
                 "embedding": np.ndarray (768,)
             }
         """
-        if not self.available() or not text:
+        if not text or not isinstance(text, str):
+            return None
+        
+        if not self.available():
+            return None
+        
+        text = text.strip()
+        if not text:
             return None
             
         try:
@@ -76,11 +93,17 @@ class SentimentEncoder:
                 max_length=512
             )
             
+            # Move tensors to device if applicable
+            inputs = {
+                k: v.to(self.device) if torch.is_tensor(v) else v
+                for k, v in inputs.items()
+            }
+            
             with torch.no_grad():
                 outputs = self._model(**inputs)
-                
-            # 2. Extract probabilities
-            probs = torch.softmax(outputs.logits, dim=1)
+            
+            logits = outputs.logits
+            probs = torch.softmax(logits, dim=1)
             sentiment_idx = torch.argmax(probs, dim=1).item()
             confidence = probs[0][sentiment_idx].item()
             
@@ -88,10 +111,10 @@ class SentimentEncoder:
             intensity = max(0.0, (confidence - 0.33) / 0.67)
             
             # 4. Project features to 384-dim (Fusion standard)
-            # Using softmax probabilities mapped to latent space
-            # In a full model, we'd use the hidden states (768) -> 384
             with torch.no_grad():
-                embedding = self.projection(probs).squeeze(0).detach().numpy()
+                # Ensure projection runs on same device
+                projected = self.projection(probs.to(self.device))
+                embedding = projected.squeeze(0).detach().cpu().numpy()
             
             return {
                 "label": self.labels.get(sentiment_idx, "neutral"),
