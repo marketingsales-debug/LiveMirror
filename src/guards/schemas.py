@@ -37,3 +37,39 @@ class StructuredResponse(BaseModel):
         if v.lower() not in allowed:
             raise ValueError(f"Invalid next_step: {v}. Must be one of {allowed}")
         return v.lower()
+
+class RubricJudge:
+    """Grades predictions using hierarchical rubrics (PaperBench Pattern)."""
+    
+    RUBRIC = {
+        "logic_quality": {
+            "has_direction": 0.2, # Direction must be up/down/neutral
+            "has_evidence": 0.3,  # Must cite at least 2 sources
+            "source_validity": 0.3, # Sources must exist in context
+            "calibration": 0.2,    # Confidence must be between 0.1 and 0.99
+        }
+    }
+
+    @staticmethod
+    def grade_response(response: StructuredResponse, context_verified: bool) -> float:
+        """Calculate a score from 0.0 to 1.0 based on the rubric."""
+        score = 0.0
+        checks = RubricJudge.RUBRIC["logic_quality"]
+        
+        # 1. Has direction
+        if response.thought.logic: # Simplified check
+            score += checks["has_direction"]
+            
+        # 2. Has evidence
+        if len(response.thought.citations) >= 2:
+            score += checks["has_evidence"]
+            
+        # 3. Source validity (passed from CitationVerifier)
+        if context_verified:
+            score += checks["source_validity"]
+            
+        # 4. Calibration
+        if 0.1 <= response.thought.confidence <= 0.99:
+            score += checks["calibration"]
+            
+        return round(score, 2)

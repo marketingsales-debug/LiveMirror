@@ -6,6 +6,27 @@ Extracted from EvoSkills patterns.
 
 from typing import List, Dict, Callable, Any
 
+class ExperimentGate:
+    """Three-stage validation gate for code changes (CodeScientist Pattern)."""
+
+    @staticmethod
+    async def run_experiment(change_id: str, lint_fn: Callable, test_fn: Callable, backtest_fn: Callable):
+        """
+        Executes Mini-Pilot -> Pilot -> Full Experiment.
+        Returns: {stage: str, success: bool, score: float}
+        """
+        # Stage 1: Mini-Pilot (Syntax/Lint)
+        if not lint_fn():
+            return {"stage": "mini-pilot", "success": False, "score": 0.0}
+            
+        # Stage 2: Pilot (Unit Tests)
+        if not await test_fn():
+            return {"stage": "pilot", "success": False, "score": 0.0}
+            
+        # Stage 3: Full Experiment (Backtest)
+        accuracy = await backtest_fn()
+        return {"stage": "full", "success": True, "score": accuracy}
+
 class AblationTester:
     """Identifies redundant or low-value modality components."""
 
