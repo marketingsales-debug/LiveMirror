@@ -1,6 +1,6 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, and Edge-Vision.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, and RARE Reasoning.
 
 ---
 
@@ -23,7 +23,7 @@ Program the "Agent's Wisdom" to survive across sessions.
 
 ## 🛡️ Phase 4: The Stability Layer (Weight Interpolation)
 Use the `anarchitectural-search` logic to safely merge self-discovered improvements.
-*   **Logic:** Use **Slerp** or weight blending to merge AI-optimized weights into the `main` branch without causing "Catastrophic Forgetting."
+*   **Logic:** Use **Slerp** or weight blending to merge AI-optimized weights into the `main` branch.
 
 ## 🛠️ Phase 5: Modular Skill Architecture (`src/skills/`)
 Adopt the **EvoSkills** pattern to give the board specific "Expertise Packs."
@@ -33,8 +33,8 @@ Adopt the **EvoSkills** pattern to give the board specific "Expertise Packs."
 ## ⚡ Phase 6: Algorithmic Stabilizers (Frontier Theory)
 Integrate recent breakthroughs from dair-ai ML research (2025-2026).
 *   **Delta Signal Analysis:** Implement `emotional_delta` to track narrative acceleration.
-*   **Elastic Caching:** Optimize KV-caches in the Sentiment Encoder to hit the "7x Speed" target.
-*   **Reward-Based Verification (HERO):** Upgrade the Board's self-review logic to score code quality.
+*   **Elastic Caching:** Optimize KV-caches in the Sentiment Encoder.
+*   **Reward-Based Verification (HERO):** Upgrade the Board's self-review logic.
 
 ## 👥 Phase 7: High-Fidelity Social Simulation (SocioVerse)
 Upgrade the behavioral realism of synthetic agents based on April 2025 research.
@@ -49,13 +49,19 @@ Optimize the system for production-scale economics and temporal awareness.
 
 ## 👁️ Phase 9: Edge-Vision Intelligence (Moondream)
 Integrate local, ultra-efficient vision processing for real-time multimodal analysis.
-*   **Local Vision Encoder:** Use Moondream 0.5B to extract visual sentiment and body language cues at $0 cost.
-*   **Agent Sight:** Give the **SelfMirror** board the ability to "see" screenshots of the dashboard to autonomously debug frontend issues.
+*   **Local Vision Encoder:** Use Moondream 0.5B to extract visual sentiment at $0 cost.
+*   **Agent Sight:** Enable board to "see" screenshots for autonomous UI debugging.
+
+## 🧠 Phase 10: RARE Reasoning Architecture
+Transform the system from pattern-matching to structured "Open-Book" reasoning.
+*   **Knowledge-Reasoning Separation:** Decouple signal retrieval (Knowledge Graph) from analysis (Transformer Logic) to eliminate hallucinations.
+*   **Dynamic Thinking Buffer (Z1):** Implement test-time search scaling for high-volatility predictions.
+*   **Architectural Refactor Skill:** Enable the Board to autonomously optimize the codebase structure (CodeScientist).
 
 ## 📅 Roadmap for Implementation
-1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, and `src/skills/`.
-2.  **Week 2:** Implement handover logic, Delta metrics, and Moondream vision encoder.
-3.  **Week 3:** Deploy **Agent Router** and perform first "Self-Evolved Calibration" with Test-Time Reasoning.
+1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, `src/skills/`, and Agent Router.
+2.  **Week 2:** Implement handover logic, Delta metrics, and RARE Open-Book refactor.
+3.  **Week 3:** First "Self-Evolved Calibration" with Z1-Reasoning and Slerp merge.
 
 ---
-**Success Criteria:** The system autonomously increases its own accuracy by >3%, reduces operational costs by 50%, and performs real-time multimodal analysis (Text+Audio+Video) on consumer-grade hardware.
+**Success Criteria:** The system autonomously increases accuracy to 94% while maintaining <45ms latency and reduced operational costs.
