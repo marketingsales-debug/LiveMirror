@@ -2,6 +2,38 @@
 
 ## Latest Handoff
 
+### 2026-03-30 — Claude (Staging Deployment) — Model: Claude Opus 4.5
+
+**What was done:**
+- **Staging infrastructure complete:**
+  - `docker-compose.staging.yml`: Multi-container setup (API, Redis, Nginx)
+  - `config/nginx.conf`: Nginx config with API proxy and SSE support
+  - `.env.staging.example`: Environment template for staging
+  - `.github/workflows/ci.yml`: CI/CD pipeline (lint, test, build, deploy)
+  - `scripts/deploy-staging.sh`: One-command staging deployment
+  - `scripts/quickstart.sh`: Local development quick start
+- **Docker improvements:**
+  - Multi-stage build for smaller image (~300MB reduction)
+  - Non-root user for security
+  - Health checks at /health (root) and /api/health
+- **Bug fixes:**
+  - Fixed nginx proxy to preserve /api/ prefix
+  - Added root /health endpoint for Docker healthchecks
+- **All 403 tests passing**
+
+**Why:** Enable consistent staging environment for integration testing before production. Automate deployments via CI/CD pipeline. Support local development without full stack setup.
+
+**What to do next:**
+1. Create `.env.staging` file with real API keys
+2. Run `scripts/deploy-staging.sh` to deploy locally
+3. Create `staging` branch to trigger CI/CD deployment
+4. Add SSE events for fine-tune progress
+5. Build monitoring dashboard for learning metrics
+
+**Blockers:** None.
+
+---
+
 ### 2026-03-30 — Claude (Integration: Loop Wiring & Bug Fixes) — Model: Claude Opus 4.5
 
 **What was done:**
