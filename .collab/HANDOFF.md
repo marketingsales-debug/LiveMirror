@@ -2,18 +2,17 @@
 
 ## Latest Handoff
 
-### 2026-03-30 — Gemini (Sprint 1: Hallucination Guard & Structured Reasoning)
+### 2026-03-30 — Gemini (Sprint 1 COMPLETE: Foundation & Reliability)
 
 **What was done:**
-- **Completed Phase 2**: Implemented the Hallucination Guard (The Trust Layer).
-- **Structured Schemas**: Created `src/guards/schemas.py` with Pydantic models for `AgentThought`, `Citation`, and `StructuredResponse`.
-- **Citation Engine**: Developed `src/guards/citation.py` to verify that AI claims are grounded in source signal text.
-- **Deterministic Logic**: Integrated schemas into `src/orchestrator/graph.py` and locked model temperature to 0.0 to eliminate creative hallucinations.
-- **Self-Correction Loop**: Configured the LangGraph to loop back to the Researcher node if citations fail verification.
+- **LangGraph Transition (Phase 1)**: Replaced the legacy linear loop with a cyclic, stateful orchestrator in `src/orchestrator/graph.py`.
+- **Hallucination Guard (Phase 2)**: Implemented Pydantic schemas and a citation verification engine. Locked model temperature to 0.0 for deterministic reasoning.
+- **Persistent Memory (Phase 3)**: Created `src/memory/lesson_learnt.py` using SQLite. Integrated memory retrieval into the Researcher node and distillation into the EMA node.
+- **Verification**: Verified that the graph handles state persistence, citation checking, and cross-session lesson retrieval.
 
 **What Claude should do next:**
-1. **Persistent Memory (Phase 3)**: Integrate Mem0 to allow agents to store and retrieve these structured thoughts across sessions.
-2. **Crawl4AI Integration**: Fully wire the `source_context` in the LangGraph state to real signals extracted via Crawl4AI.
+1. **RARE Reasoning (Sprint 2 / Phase 4)**: Implement the "Open-Book" architecture to further decouple knowledge from reasoning.
+2. **Economic Routing (Phase 5)**: Build the complexity scorer to route tasks between local and frontier models.
 
 **Blockers:** None.
 

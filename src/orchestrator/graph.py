@@ -13,6 +13,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from ..guards.schemas import StructuredResponse, AgentThought, AgentAction, Citation
 from ..guards.citation import CitationVerifier
+from ..memory.lesson_learnt import LessonLearntStore
 
 # --- State Definition ---
 
@@ -26,13 +27,14 @@ class AgentState(TypedDict):
     verification_results: Dict[str, Any]
     next_agent: str
     lessons: List[str]
-    # For hallucination guard (Phase 2)
     source_context: str 
 
 # --- Configuration ---
 
+# Shared persistent memory (Phase 3)
+MEMORY_STORE = LessonLearntStore()
+
 # Lock temperature to 0.0 for deterministic reasoning (Phase 2)
-# Ensure OPENAI_API_KEY is set in environment
 LLM = ChatOpenAI(model="gpt-4o", temperature=0.0)
 
 # --- Node Definitions ---
@@ -41,14 +43,18 @@ async def researcher_node(state: AgentState):
     """RA Node: Analyzes signals and proposes research directions."""
     print("--- [RA] RESEARCHER STARTING ---")
     
+    # Retrieve historical lessons (Phase 3)
+    past_lessons = MEMORY_STORE.get_lessons(topic=state["goal"], limit=3)
+    lessons_text = "\n".join([f"- {l['content']}" for l in past_lessons]) if past_lessons else "None"
+
     prompt = (
         f"Goal: {state['goal']}\n"
         f"Context Files: {state['context_files']}\n"
+        f"Historical Lessons: {lessons_text}\n"
         f"Source Context: {state.get('source_context', 'None')}\n"
         "Analyze and respond in JSON using the provided schema."
     )
     
-    # Force structured output using Pydantic (Hallucination Guard)
     structured_llm = LLM.with_structured_output(StructuredResponse)
     try:
         response = await structured_llm.ainvoke(prompt)
@@ -62,7 +68,7 @@ async def researcher_node(state: AgentState):
         if not v["is_valid"]:
             return {
                 "messages": [AssistantMessage(content=f"Hallucination detected in citations: {v['hallucinations']}")],
-                "next_agent": "researcher" # Self-correct loop
+                "next_agent": "researcher" 
             }
 
         return {
@@ -79,19 +85,27 @@ async def researcher_node(state: AgentState):
 async def coder_node(state: AgentState):
     """EA Node: Implements code changes in the Research Sandbox."""
     print("--- [EA] ENGINEER STARTING ---")
-    # Coder will also use structured output in final implementation
     return {"messages": [AssistantMessage(content="Engineer proposed a patch.")], "next_agent": "analyst"}
 
 async def analyst_node(state: AgentState):
     """Analyst Node: Runs backtests and verifies patches."""
     print("--- [Analyst] VERIFICATION STARTING ---")
-    # For now, a mock success
     return {"messages": [AssistantMessage(content="Verification passed.")], "next_agent": "ema"}
 
 async def ema_node(state: AgentState):
-    """EMA Node: Distills lessons into persistent memory."""
+    """EMA Node: Distills lessons into persistent memory (Phase 3)."""
     print("--- [EMA] DISTILLATION STARTING ---")
-    return {"messages": [AssistantMessage(content="EMA distilled lessons.")], "next_agent": "end"}
+    
+    last_msg = state["messages"][-1].content if state["messages"] else "No history"
+    
+    # Save the "Lesson Learnt"
+    MEMORY_STORE.save_lesson(
+        agent_id="ema",
+        topic=state["goal"],
+        content=f"Prediction Cycle Outcome: {last_msg}"
+    )
+    
+    return {"messages": [AssistantMessage(content="EMA distilled and saved lesson.")], "next_agent": "end"}
 
 # --- Graph Construction ---
 
@@ -99,13 +113,11 @@ def create_research_board():
     """Builds the LangGraph state machine."""
     workflow = StateGraph(AgentState)
 
-    # Add Nodes
     workflow.add_node("researcher", researcher_node)
     workflow.add_node("coder", coder_node)
     workflow.add_node("analyst", analyst_node)
     workflow.add_node("ema", ema_node)
 
-    # Define Edges
     workflow.set_entry_point("researcher")
     
     def router(state: AgentState):
@@ -134,10 +146,8 @@ def create_research_board():
     
     workflow.add_edge("ema", END)
 
-    # Add Memory for persistence
     checkpointer = MemorySaver()
     
     return workflow.compile(checkpointer=checkpointer)
 
-# Singleton instance
 research_board = create_research_board()
