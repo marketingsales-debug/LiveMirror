@@ -1,85 +1,55 @@
-# Implementation Plan: Update 2.9 (The Autonomous Scientist)
+# LiveMirror: Streamlined v2.0 Execution Plan
+**Version:** 2.1 (Sane & Sprint-Based)  
+**Status:** Sprint 1 Initialization  
+**Baseline:** 86% Accuracy | **Target:** 94% (Verified via BacktestHarness)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, LangGraph orchestration, EvoScientist board logic, and the Ultimate 2026 Research Stack.
+---
+
+## 📅 Sprint 1: The Foundation (Weeks 1-2)
+**Goal:** Build a stateful, reliable spine that does not hallucinate.
+
+*   **[ ] Phase 1: LangGraph Transition**
+    *   Replace `agent_logic.py` with `src/orchestrator/graph.py`.
+    *   Implement state persistence and error recovery nodes.
+*   **[ ] Phase 2: Hallucination Guard (The Trust Layer)**
+    *   Strict Pydantic schema enforcement for all LLM outputs.
+    *   Source Citation Engine: Every claim must map to a signal ID.
+    *   Locked temperature (0.0) for deterministic reasoning.
+*   **[ ] Phase 3: Persistent Memory (Mem0)**
+    *   Integrate Mem0 to track agent "lessons learned" across sessions.
+
+## 📅 Sprint 2: The Intelligence (Weeks 3-4)
+**Goal:** Shift from pattern-matching to deep logical reasoning.
+
+*   **[ ] Phase 4: RARE Reasoning Architecture**
+    *   Implement "Open-Book" distillation. 
+    *   Decouple Signal Knowledge (RAG) from Narrative Logic (Transformer).
+*   **[ ] Phase 5: RouteLLM (Cost Efficiency)**
+    *   Deploy router to send simple tasks to local models, saving budget for RARE reasoning.
+*   **[ ] Phase 6: Multi-Agent Research Board**
+    *   Deploy specialized nodes: Researcher (RA), Engineer (EA), and Analyst.
+
+## 📅 Sprint 3: Data & Verification (Weeks 5-6)
+**Goal:** Scale the data quality and prove the 94% accuracy.
+
+*   **[ ] Phase 7: Scientific Verification (PaperBench)**
+    *   Implement Golden Rubrics for all core components.
+    *   Deploy a "Judge Agent" to audit board proposals.
+*   **[ ] Phase 8: Relational Memory (Qdrant + LightRAG)**
+    *   Upgrade from local storage to high-velocity vector and graph retrieval.
+*   **[ ] Phase 9: Delta Signal Analysis**
+    *   Implement "Emotional Acceleration" metrics to predict tipping points.
 
 ---
 
-## 🏗️ Phase 1: LangGraph & Crawl4AI Core
-Replace the legacy `AgentLoop` with a stateful multi-agent orchestrator.
-
-## 🧪 Phase 2: The Multi-Agent Research Board
-Transition from a single agent to a specialized team (RA, EA, Analyst, EMA).
-
-## 🧠 Phase 3: Persistent Evolutionary Memory (Mem0)
-Program the "Agent's Wisdom" to survive across sessions using **Mem0**.
-
-## 🛡️ Phase 4: The Stability Layer (Weight Interpolation)
-Use **Slerp** or weight blending to merge AI-optimized weights.
-
-## 🛠️ Phase 5: Modular Skill Architecture (`src/skills/`)
-Give the board specific "Expertise Packs" (Signal Tournament, Ablation, Diagnostic Flows).
-
-## ⚡ Phase 6: Algorithmic Stabilizers (Frontier Theory)
-Integrate breakthroughs: Delta Signal Analysis, Elastic Caching, and HERO Quality Verification.
-
-## 👥 Phase 7: High-Fidelity Social Simulation (SocioVerse)
-Upgrade synthetic agents with "Socio-Emotional Fingerprints" and "Reflection."
-
-## 📉 Phase 8: Operational Excellence (Cost & Performance Routing)
-Implement **Agent Router (RouteLLM)** and asynchronous **FlashAttention-3 (FP8)**.
-
-## 👁️ Phase 9: Edge-Vision Intelligence (Moondream)
-Integrate local vision processing for real-time multimodal analysis.
-
-## 🧠 Phase 10: RARE Reasoning Architecture
-Transform to an "Open-Book" architecture, decoupling facts from reasoning.
-
-## ⏱️ Phase 11: Z1 Shifted-Thinking Engine
-Implement two-stage inference (Trajectory + Synthesis).
-
-## ✅ Phase 12: Autonomous R&D Verification (PaperBench)
-Establish "Human-Level" standards with Golden Rubrics and **Judge Agents**.
-
-## 🔬 Phase 13: Scientific Experimentation & Reporting (CodeScientist)
-Automate the end-to-end scientific method for architectural discovery.
-
-## 💾 Phase 14: Tiered Long-Term Memory & GraphRAG
-Upgrade the "Brain" with high-velocity (Qdrant) and relational (LightRAG) memory.
-
-## 📈 Phase 15: Time-Series & Numerical Intelligence
-Bridge the gap between narratives and market data using **Chronos** and **Merlion**.
-
-## 🌊 Phase 16: Resilient Data Infrastructure (The Plumbing)
-Move to a decoupled event stream using **Redpanda**, **dlt**, and **Dagster**.
-
-## 🌐 Phase 17: Autonomous Agency (SkyPilot)
-Automate multi-cloud deployment and workload management.
-
-## 👁️‍🗨️ Phase 18: AI Observability (DSPy / AgentOps)
-Implement self-optimizing prompts and agent flight recording.
-
-## 🎨 Phase 19: High-Performance Visualization (The War-Room)
-Transform the system into a 3D predictive command center (React Flow, Three.js).
-
-## 🐟 Phase 20: Massive Swarm Intelligence (MiroFish)
-Upgrade from 50 to 10,000+ synthetic agents with unique personalities.
-
-## 📊 Phase 21: Institutional Data Fusion (OpenBB + RAGFlow)
-Connect agents to real-time market data and structured document understanding.
-
-## 🚀 Phase 22: Secure High-Performance Infrastructure (Phi-4 + vLLM + E2B)
-Deploy local brain serving at 10x speed inside secure sandboxes.
-
-## 🛡️ Phase 23: Hallucination Guard & Trust Protocol
-Ensure 100% grounded predictions through deterministic constraints.
-*   **Source Citations:** Every prediction must link to a raw signal ID from Crawl4AI.
-*   **Skeptic Cross-Examination:** Implement LangGraph nodes that attempt to refute predictions using RAG context.
-*   **JSON Logic Enforcement:** All reasoning must pass strict Pydantic validation to eliminate "hallucinated rambling."
-
-## 📅 Roadmap for Implementation
-1.  **Week 1:** Scaffold **LangGraph Board**, **Crawl4AI**, and **Hallucination Guard**.
-2.  **Week 2:** Implement **MiroFish Swarm**, OpenBB data, and RARE refactor.
-3.  **Week 3:** Deploy **vLLM Inference Cluster**, 3D Galaxy, and first "Swarm-Evolved" prediction.
+## 🛡️ The "Mini-Pilot" Gate (Standard Operating Procedure)
+No code is merged into `main` without passing the following:
+1.  **Syntax Check**: Does it run?
+2.  **Logic Check**: Does it pass the specific unit test?
+3.  **Regression Check**: Does the overall accuracy stay >= current baseline?
 
 ---
-**Success Criteria:** The system autonomously simulates 10,000+ agents with 94% accuracy, 0% unverified hallucinations, and <45ms latency.
+
+## 📊 Concrete Target Definitions
+*   **94% Accuracy**: Success rate in predicting the **Direction** (Bullish/Bearish) of a narrative tipping point 1 hour in advance, measured against the ICML historical dataset.
+*   **45ms Latency**: End-to-end processing time for a single multimodal signal cluster.
