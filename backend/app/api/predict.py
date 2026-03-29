@@ -22,7 +22,8 @@ from src.simulation.agents.factory import AgentFactory
 from src.simulation.calibration.calibrator import CalibrationEngine
 from src.learning.loop import LearningLoop
 from src.shared.types import Prediction, PredictionStatus
-from .metrics import record_prediction, record_cache_stats
+from .metrics import record_prediction
+from backend.app.services.experiments import ExperimentManager
 
 router = APIRouter()
 
@@ -32,6 +33,7 @@ _runner = SimulationRunner()
 _factory = AgentFactory()
 _calibrator = CalibrationEngine()
 _learning = LearningLoop(calibrator=_calibrator)
+_experiments = ExperimentManager.from_env()
 
 # Track predictions (with simulation state for learning)
 _predictions: Dict[str, Dict[str, Any]] = {}
@@ -56,6 +58,94 @@ class PredictResponse(BaseModel):
     summary: Optional[str] = None
 
 
+def _variant_request_params(request: PredictRequest, variant: str) -> Dict[str, int]:
+    """Resolve request parameters for a given experiment variant."""
+    if variant == "candidate":
+        return {
+            "agent_count": _experiments.candidate_agent_count(request.agent_count),
+            "simulation_rounds": _experiments.candidate_simulation_rounds(request.simulation_rounds),
+        }
+    return {
+        "agent_count": request.agent_count,
+        "simulation_rounds": request.simulation_rounds,
+    }
+
+
+async def _execute_prediction(
+    request: PredictRequest,
+    variant: str,
+    emit_sse: bool = True,
+) -> Dict[str, Any]:
+    """Run the full simulation → debate → prediction pipeline for a variant."""
+    params = _variant_request_params(request, variant)
+    start_time = time.perf_counter()
+
+    agents = [
+        _factory.create_synthetic(name=f"Agent_{i}")
+        for i in range(params["agent_count"])
+    ]
+
+    state = _runner.create_simulation(
+        topic=request.topic,
+        agents=agents,
+        total_rounds=params["simulation_rounds"],
+    )
+    state = await _runner.run(state.simulation_id, emit_sse=emit_sse)
+
+    if state.error:
+        return {"error": state.error}
+
+    debate_result = _debate.debate(state)
+
+    correction = _calibrator.apply_confidence_correction(debate_result.confidence) - debate_result.confidence
+    prediction = _debate.to_prediction(
+        result=debate_result,
+        topic=request.topic,
+        state=state,
+        confidence_correction=correction,
+    )
+
+    latency_ms = (time.perf_counter() - start_time) * 1000
+
+    return {
+        "prediction": prediction,
+        "debate": debate_result,
+        "state": state,
+        "latency_ms": latency_ms,
+    }
+
+
+async def _run_shadow_prediction(pred_id: str, request: PredictRequest) -> None:
+    """Run a candidate prediction in shadow mode (no user impact)."""
+    try:
+        result = await _execute_prediction(request, "candidate", emit_sse=False)
+        if result.get("error"):
+            _predictions[pred_id]["shadow_error"] = result["error"]
+            return
+
+        prediction = result["prediction"]
+        _predictions[pred_id]["shadow"] = {
+            "prediction_id": prediction.prediction_id,
+            "topic": prediction.topic,
+            "confidence": round(prediction.confidence, 3),
+            "confidence_level": prediction.confidence_level.value,
+            "bull_score": prediction.bull_score,
+            "bear_score": prediction.bear_score,
+            "consensus": prediction.debate_consensus,
+            "simulation_rounds": prediction.simulation_rounds,
+            "source_signals": prediction.source_signals_count,
+            "narrative_stage": prediction.narrative_stage.value,
+            "latency_ms": round(result["latency_ms"], 2),
+        }
+        await record_prediction(
+            latency_ms=result["latency_ms"],
+            confidence=prediction.confidence,
+            variant="shadow",
+        )
+    except Exception as e:
+        _predictions[pred_id]["shadow_error"] = str(e)
+
+
 @router.post("/start", response_model=PredictResponse)
 async def start_prediction(request: PredictRequest, background_tasks: BackgroundTasks):
     """
@@ -68,6 +158,7 @@ async def start_prediction(request: PredictRequest, background_tasks: Background
     4. Generate prediction with calibrated confidence
     """
     pred_id = f"pred_{uuid.uuid4().hex[:12]}"
+    variant = _experiments.assign_variant(pred_id)
 
     _predictions[pred_id] = {
         "topic": request.topic,
@@ -75,6 +166,8 @@ async def start_prediction(request: PredictRequest, background_tasks: Background
         "prediction": None,
         "debate": None,
         "error": None,
+        "variant": variant,
+        "shadow": None,
     }
 
     background_tasks.add_task(
@@ -90,40 +183,31 @@ async def start_prediction(request: PredictRequest, background_tasks: Background
 
 async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
     """Run the full simulation → debate → prediction pipeline."""
-    start_time = time.perf_counter()
     try:
-        # 1. Create agents (synthetic for now — graph integration via ingest API)
-        agents = [
-            _factory.create_synthetic(name=f"Agent_{i}")
-            for i in range(request.agent_count)
-        ]
+        requested_variant = _predictions.get(pred_id, {}).get("variant", "control")
 
-        # 2. Run simulation
-        state = _runner.create_simulation(
-            topic=request.topic,
-            agents=agents,
-            total_rounds=request.simulation_rounds,
-        )
-        state = await _runner.run(state.simulation_id, emit_sse=True)
+        if _experiments.shadow_mode:
+            primary_variant = "control"
+            result = await _execute_prediction(request, primary_variant)
+            asyncio.create_task(_run_shadow_prediction(pred_id, request))
+        elif _experiments.ab_enabled:
+            primary_variant = requested_variant
+            result = await _execute_prediction(request, primary_variant)
+        else:
+            primary_variant = "control"
+            result = await _execute_prediction(request, primary_variant)
 
-        if state.error:
+        if result.get("error"):
             _predictions[pred_id]["status"] = "failed"
-            _predictions[pred_id]["error"] = state.error
+            _predictions[pred_id]["error"] = result["error"]
             return
 
-        # 3. Run debate
-        debate_result = _debate.debate(state)
+        prediction = result["prediction"]
+        debate_result = result["debate"]
+        state = result["state"]
+        latency_ms = result["latency_ms"]
 
-        # 4. Generate prediction with calibration
-        correction = _calibrator.apply_confidence_correction(debate_result.confidence) - debate_result.confidence
-        prediction = _debate.to_prediction(
-            result=debate_result,
-            topic=request.topic,
-            state=state,
-            confidence_correction=correction,
-        )
-
-        # 5. Emit SSE
+        # Emit SSE
         try:
             from backend.app.api.stream import emit_prediction
             await emit_prediction(
@@ -134,15 +218,19 @@ async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
         except ImportError:
             pass
 
-        # 6. Register for learning
+        # Register for learning (primary variant only)
         _learning.register_prediction(prediction)
         _simulation_states[pred_id] = state
 
-        # 7. Record metrics for monitoring dashboard
-        latency_ms = (time.perf_counter() - start_time) * 1000
-        await record_prediction(latency_ms=latency_ms, confidence=prediction.confidence)
+        # Record metrics for monitoring dashboard
+        await record_prediction(
+            latency_ms=latency_ms,
+            confidence=prediction.confidence,
+            variant=primary_variant,
+        )
 
         _predictions[pred_id]["status"] = "completed"
+        _predictions[pred_id]["variant"] = primary_variant
         _predictions[pred_id]["prediction"] = {
             "prediction_id": prediction.prediction_id,
             "topic": prediction.topic,
@@ -180,8 +268,10 @@ async def prediction_status(prediction_id: str):
         "prediction_id": prediction_id,
         "topic": pred["topic"],
         "status": pred["status"],
+        "variant": pred.get("variant", "control"),
         "prediction": pred["prediction"],
         "debate": pred["debate"],
+        "shadow": pred.get("shadow"),
         "error": pred["error"],
     }
 

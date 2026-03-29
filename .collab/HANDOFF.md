@@ -2,6 +2,31 @@
 
 ## Latest Handoff
 
+### 2026-03-29 — GPT-5.2-Codex (Production Hardening: Shadow + A/B)
+
+**What was done:**
+- **Experiment framework:** Added `backend/app/services/experiments.py` with shadow mode + A/B routing (deterministic hash bucketing).
+- **Prediction routing:** `backend/app/api/predict.py` now supports:
+  - Shadow runs (candidate executed without user impact)
+  - A/B selection between control/candidate
+  - Variant metadata added to prediction status/report
+- **Metrics:** `record_prediction` now stores variant + overview returns `by_variant` counts.
+- **Config:** Added env toggles to `.env.example` and `.env.staging.example`:
+  - `SHADOW_MODE_ENABLED`, `AB_TEST_ENABLED`, `AB_TEST_SPLIT`, `AB_TEST_SEED`
+  - Optional candidate overrides for agent count / simulation rounds
+- **Tests:** All 403 tests passing.
+
+**Why:** Safe rollout path (shadow → A/B) before full production enablement. Metrics now track variant behavior for validation.
+
+**What to do next:**
+1. Enable `SHADOW_MODE_ENABLED=true` in staging for burn-in.
+2. After stability, set `AB_TEST_ENABLED=true` with split (e.g., 0.10).
+3. Add dashboard view for variant breakdown (optional).
+
+**Blockers:** None.
+
+---
+
 ### 2026-03-30 — Gemini (Update 2.9: The Autonomous Scientist — MISSION COMPLETE)
 
 **What was done:**

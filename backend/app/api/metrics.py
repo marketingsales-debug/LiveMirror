@@ -54,11 +54,17 @@ async def metrics_overview() -> Dict[str, Any]:
         elif recent_accuracy[-1] < recent_accuracy[0] - 0.02:
             accuracy_trend = "degrading"
     
+    by_variant: Dict[str, int] = {}
+    for p in predictions:
+        variant = p.get("variant", "control")
+        by_variant[variant] = by_variant.get(variant, 0) + 1
+
     return {
         "timestamp": datetime.now().isoformat(),
         "predictions": {
             "total": total_predictions,
             "last_24h": sum(1 for p in predictions if p["ts"] > datetime.now() - timedelta(hours=24)),
+            "by_variant": by_variant,
         },
         "accuracy": {
             "current": recent_accuracy[-1] if recent_accuracy else 0.86,
@@ -195,12 +201,17 @@ async def pipeline_health() -> Dict[str, Any]:
 
 
 @router.post("/record-prediction")
-async def record_prediction(latency_ms: float, confidence: float) -> Dict[str, str]:
+async def record_prediction(
+    latency_ms: float,
+    confidence: float,
+    variant: str = "control",
+) -> Dict[str, str]:
     """Record a prediction for metrics tracking."""
     _metrics_store["predictions"].append({
         "ts": datetime.now(),
         "latency_ms": latency_ms,
         "confidence": confidence,
+        "variant": variant,
     })
     _metrics_store["latency_samples"].append(latency_ms)
     
