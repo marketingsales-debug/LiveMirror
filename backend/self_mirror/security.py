@@ -6,7 +6,7 @@ Command allowlist, API key auth, and input sanitization.
 import os
 import re
 import shlex
-from typing import Optional
+from typing import Optional, List, Dict, Callable
 from fastapi import HTTPException, Header
 
 
@@ -25,49 +25,64 @@ async def require_auth(x_api_key: Optional[str] = Header(None)) -> str:
     return x_api_key
 
 
-# --- Command Allowlist ---
+# --- Command Validation Logic ---
 
-# Prefix patterns that the agent is allowed to run.
-# Anything not matching is blocked before reaching subprocess.
-ALLOWED_COMMAND_PREFIXES = [
-    # Testing
-    "pytest",
-    "python -m pytest",
-    "uv run python -m pytest",
-    "npm test",
-    "npm run test",
-    "npx vitest",
-    # Linting / type checking
-    "npm run lint",
-    "npm run build",
-    "npx tsc",
-    "ruff check",
-    "ruff format",
-    "mypy",
-    # Git read-only
-    "git status",
-    "git diff",
-    "git log",
-    "git show",
-    "git branch",
-    # Python
-    "python -m",
-    "uv run",
-    # Info commands
-    "ls",
-    "cat",
-    "head",
-    "tail",
-    "wc",
-    "find",
-    "grep",
-    "echo",
-    "pwd",
-    "which",
-    "env",
-]
+def validate_python_m(args: List[str]) -> bool:
+    """Only allow specific python modules via -m flag."""
+    if len(args) < 3:
+        return False
+    if args[1] != "-m":
+        return False
+    module = args[2]
+    allowed_modules = ["pytest", "json.tool", "venv", "pip"]
+    # We allow 'pip' only for 'pip list' or 'pip show'
+    if module == "pip":
+        return len(args) >= 4 and args[3] in ["list", "show"]
+    return module in allowed_modules
 
-# Patterns that are ALWAYS blocked, even if prefix matches.
+def validate_npm(args: List[str]) -> bool:
+    """Only allow npm test, lint, build."""
+    if len(args) < 2:
+        return False
+    subcommand = args[1]
+    if subcommand == "run":
+        return len(args) >= 3 and args[2] in ["test", "lint", "build"]
+    return subcommand in ["test", "test:unit", "test:e2e"]
+
+def validate_uv(args: List[str]) -> bool:
+    """Only allow uv run python -m pytest or uv run ruff."""
+    if len(args) < 2:
+        return False
+    if args[1] == "run":
+        # Recursively validate the command after 'uv run'
+        return validate_command_tokens(args[2:])
+    return False
+
+# Map base commands to validation functions (or None for always allowed)
+ALLOWED_COMMANDS: Dict[str, Optional[Callable[[List[str]], bool]]] = {
+    "pytest": None,
+    "python": validate_python_m,
+    "python3": validate_python_m,
+    "uv": validate_uv,
+    "npm": validate_npm,
+    "npx": None,  # npx vitest, npx tsc etc.
+    "ruff": None,
+    "mypy": None,
+    "git": None,
+    "ls": None,
+    "cat": None,
+    "head": None,
+    "tail": None,
+    "wc": None,
+    "find": None,
+    "grep": None,
+    "echo": None,
+    "pwd": None,
+    "which": None,
+    "env": None,
+}
+
+# Patterns that are ALWAYS blocked, even if base command is allowed.
 BLOCKED_PATTERNS = [
     r"\brm\s+-rf\b",
     r"\brm\s+-r\b",
@@ -92,30 +107,44 @@ BLOCKED_PATTERNS = [
     r"\breboot\b",
 ]
 
+def validate_command_tokens(tokens: List[str]) -> bool:
+    """Internal helper to validate tokenized command."""
+    if not tokens:
+        return False
+    
+    base_cmd = tokens[0]
+    if base_cmd not in ALLOWED_COMMANDS:
+        return False
+    
+    validator = ALLOWED_COMMANDS[base_cmd]
+    if validator:
+        return validator(tokens)
+    
+    return True
 
 def validate_command(command: str) -> dict:
     """
-    Check if a command is safe to execute.
-
-    Returns:
-        {"allowed": True} or {"allowed": False, "reason": "..."}
+    Check if a command is safe to execute using tokenization.
     """
     cmd_stripped = command.strip()
-
     if not cmd_stripped:
         return {"allowed": False, "reason": "Empty command."}
 
-    # 1. Check blocked patterns first (highest priority)
+    # 1. Check blocked patterns (regex)
     for pattern in BLOCKED_PATTERNS:
         if re.search(pattern, cmd_stripped, re.IGNORECASE):
             return {"allowed": False, "reason": f"Blocked pattern: {pattern}"}
 
-    # 2. Check if command starts with an allowed prefix
-    for prefix in ALLOWED_COMMAND_PREFIXES:
-        if cmd_stripped.startswith(prefix):
-            return {"allowed": True}
+    # 2. Tokenize and validate base command + arguments
+    try:
+        tokens = shlex.split(cmd_stripped)
+    except ValueError as e:
+        return {"allowed": False, "reason": f"Shell parsing error: {str(e)}"}
+
+    if validate_command_tokens(tokens):
+        return {"allowed": True}
 
     return {
         "allowed": False,
-        "reason": f"Command not in allowlist. Starts with: '{cmd_stripped.split()[0]}'"
+        "reason": f"Command or arguments not in allowlist: '{cmd_stripped.split()[0]}'"
     }
