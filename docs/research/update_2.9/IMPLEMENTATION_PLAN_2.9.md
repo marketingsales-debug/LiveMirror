@@ -1,19 +1,17 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, and AI2 Scientific Experimentation.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, AI2 Scientific Experimentation, and Tiered Long-Term Memory.
 
 ---
 
 ## 🏗️ Phase 1: The Research Sandbox (`src/research_sandbox/`)
 Establish a restricted environment where the **SelfMirror** agent board has full "Self-Modification" permissions.
-*   **Action:** Create `src/research_sandbox/train_fusion.py`.
-*   **Action:** Create `src/research_sandbox/results.tsv` to track cross-generational progress.
 
 ## 🧪 Phase 2: The Multi-Agent Research Board
-Transition from a single agent to a specialized team based on **EvoScientist** roles: Researcher, Engineer, Analyst, and Evolution Manager.
+Transition from a single agent to a specialized team based on **EvoScientist** roles (RA, EA, Analyst, EMA).
 
-## 🧠 Phase 3: Persistent Evolutionary Memory (`EVOLUTIONARY_MEMORY.json`)
-Program the "Agent's Wisdom" to survive across sessions, tracking successful hypotheses and reusable code-patterns.
+## 🧠 Phase 3: Persistent Evolutionary Memory (Mem0)
+Program the "Agent's Wisdom" to survive across sessions using **Mem0**. Track successful hypotheses and reusable code-patterns.
 
 ## 🛡️ Phase 4: The Stability Layer (Weight Interpolation)
 Use **Slerp** or weight blending to merge AI-optimized weights without "Catastrophic Forgetting."
@@ -43,15 +41,18 @@ Implement two-stage inference (Trajectory + Synthesis) with variable compute bud
 Establish "Human-Level" engineering standards with Golden Rubrics and reproduction pipelines.
 
 ## 🔬 Phase 13: Scientific Experimentation & Reporting (CodeScientist)
-Automate the end-to-end scientific method for architectural discovery.
-*   **ArXiv Ideation:** Enable the board to read latest research and propose novel "mutated" hypotheses.
-*   **Tiered Pilot System:** Mini-Pilot -> Pilot -> Full Experiment pipeline to ensure logic stability.
-*   **Autonomous Meta-Analysis:** Generate weekly LaTeX/Markdown research reports documenting R&D progress.
+Automate the end-to-end scientific method for architectural discovery and meta-analysis reporting.
+
+## 💾 Phase 14: Tiered Long-Term Memory & GraphRAG
+Upgrade the "Brain" with high-velocity and relational memory layers.
+*   **Vector Backbone:** Implement **Qdrant** + **LlamaIndex** for real-time signal retrieval (<15ms).
+*   **Narrative Knowledge Graph:** Use **LightRAG** to understand multi-hop relationships between social influencers.
+*   **Sim-Graph Memory:** Integrate **Memgraph** for high-frequency state updates during 72-round tournaments.
 
 ## 📅 Roadmap for Implementation
-1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, and Agent Router.
-2.  **Week 2:** Implement handover logic, Delta metrics, and RARE Open-Book refactor.
-3.  **Week 3:** Deploy CodeScientist Experiment Builder and perform first "Self-Evolved" Report generation.
+1.  **Week 1:** Scaffold Sandbox, **Qdrant Vector Store**, and Agent Router.
+2.  **Week 2:** Implement **Mem0 Persistent Wisdom**, Delta metrics, and RARE Open-Book refactor.
+3.  **Week 3:** Deploy **LightRAG Narrative Graph** and perform first "Self-Evolved" Report generation.
 
 ---
-**Success Criteria:** The system autonomously proposes, tests, and documents a new architectural improvement that boosts accuracy to 94% with verifiable statistical proof.
+**Success Criteria:** The system autonomously increases accuracy to 94% with relational narrative intelligence, persistent cross-session memory, and <45ms end-to-end latency.
