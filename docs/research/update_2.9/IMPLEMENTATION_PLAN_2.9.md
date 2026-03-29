@@ -32,14 +32,19 @@ Adopt the **EvoSkills** pattern to give the board specific "Expertise Packs."
 
 ## ⚡ Phase 6: Algorithmic Stabilizers (Frontier Theory)
 Integrate recent breakthroughs from dair-ai ML research (2025-2026).
-*   **Delta Signal Analysis:** Implement `emotional_delta` to track the *acceleration* of narrative growth.
+*   **Delta Signal Analysis:** Implement `emotional_delta` to track narrative acceleration.
 *   **Elastic Caching:** Optimize KV-caches in the Sentiment Encoder to hit the "7x Speed" target.
-*   **Reward-Based Verification (HERO):** Upgrade the Board's self-review logic to score code quality, not just test results.
+*   **Reward-Based Verification (HERO):** Upgrade the Board's self-review logic to score code quality.
+
+## 👥 Phase 7: High-Fidelity Social Simulation (SocioVerse)
+Upgrade the behavioral realism of synthetic agents based on April 2025 research.
+*   **Socio-Emotional Fingerprints:** Implement "Archetypes" (FOMO-Spreader, Skeptic, Whale) in `AgentFactory`.
+*   **Test-Time Reasoning (M1):** Implement deep-reasoning buffers in the orchestrator to verify narrative trajectories before final prediction.
 
 ## 📅 Roadmap for Implementation
 1.  **Week 1:** Scaffold Sandbox, `EVOLUTIONARY_MEMORY.json`, and `src/skills/`.
-2.  **Week 2:** Implement RA -> EA -> Analyst handover and "Delta Sentiment" metrics.
-3.  **Week 3:** Perform the first "Self-Evolved Calibration" with Elastic Caching and Slerp merge.
+2.  **Week 2:** Implement handover logic, Delta metrics, and Socio-Emotional archetypes.
+3.  **Week 3:** First "Self-Evolved Calibration" with Test-Time Reasoning and Slerp merge.
 
 ---
-**Success Criteria:** The system autonomously increases its own accuracy by >3% and reduces latency to <15ms through self-discovered algorithmic optimizations.
+**Success Criteria:** The system autonomously increases its own accuracy by >3%, reduces latency to <15ms, and generates qualitative "Narrative Archetype" reports.
