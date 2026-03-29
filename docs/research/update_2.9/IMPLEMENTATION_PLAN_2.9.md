@@ -1,6 +1,6 @@
 # Implementation Plan: Update 2.9 (The Autonomous Scientist)
 
-**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, AI2 Scientific Experimentation, Tiered Memory, Time-Series Intelligence, Resilient Data Infrastructure, and Autonomous Agency.
+**Objective:** Move LiveMirror from "Static Code" to "Self-Evolving Intelligence" by adopting the Karpathy `autoresearch` protocol, `anarchitectural` interpolation, EvoScientist Multi-Agent logic, Frontier Algorithmic stabilizers, Edge-Vision, RARE Reasoning, Z1 Inference Scaling, PaperBench Verification, AI2 Scientific Experimentation, Tiered Memory, Time-Series Intelligence, Resilient Data Infrastructure, Autonomous Agency, and Generative Social Simulation.
 
 ---
 
@@ -22,8 +22,11 @@ Give the board specific "Expertise Packs" (Signal Tournament, Ablation, Diagnost
 ## ⚡ Phase 6: Algorithmic Stabilizers (Frontier Theory)
 Integrate breakthroughs: Delta Signal Analysis, Elastic Caching, and HERO Quality Verification.
 
-## 👥 Phase 7: High-Fidelity Social Simulation (SocioVerse)
+## 👥 Phase 7: High-Fidelity Social Simulation (Generative Agents)
 Upgrade synthetic agents with "Socio-Emotional Fingerprints" and implement Test-Time Reasoning (M1).
+*   **Memory Stream & Reflection:** Implement Stanford-style persistent memory and periodic reflection for synthetic agents to form complex beliefs.
+*   **Social Goal Scenarios (SOTOPIA):** Model "Manipulation Red-Teaming" where agents try to persuade each other, measuring narrative contagion risk.
+*   **Social Dilemma Metrics (Melting Pot):** Model "Market Panic" and "Euphoria" tipping points based on multi-agent cooperative/competitive dynamics.
 
 ## 📉 Phase 8: Operational Excellence (Cost & Performance Routing)
 Implement **Agent Router (RouteLLM)** and asynchronous **FlashAttention-3 (FP8)**.
@@ -53,15 +56,12 @@ Bridge the gap between narratives and raw market data using **Chronos** and **Me
 Move from script-based collection to a production-grade decoupled event stream using **Redpanda**, **dlt**, and **Dagster**.
 
 ## 🌐 Phase 17: Web-Aware Agency & Cloud Orchestration
-Expand the board's reach beyond APIs and fixed infrastructure.
-*   **Engineering Autonomy:** Upgrade the Engineer Agent (EA) with **OpenHands** planning loops for codebase-wide refactoring.
-*   **Web Navigation:** Use **WebVoyager** to verify signals by navigating non-API websites and gated forums.
-*   **SkyPilot Infrastructure:** Automate deployment of simulation workloads across Oracle, Kaggle, and Colab seamlessly.
+Expand reach beyond APIs with **OpenHands** engineering loops, **WebVoyager** research, and **SkyPilot** multi-cloud automation.
 
 ## 📅 Roadmap for Implementation
-1.  **Week 1:** Scaffold Sandbox, **Redpanda Event Bus**, and **SkyPilot Config**.
-2.  **Week 2:** Implement **OpenHands Engineering Loop**, Delta metrics, and RARE refactor.
-3.  **Week 3:** Deploy **WebVoyager Researcher**, AutoGluon Ensemble, and first "Self-Evolved" Report generation.
+1.  **Week 1:** Scaffold Sandbox, **Redpanda Event Bus**, and **Qdrant Vector Store**.
+2.  **Week 2:** Implement **Generative Agent Memory Stream**, Delta metrics, and RARE refactor.
+3.  **Week 3:** Deploy **SOTOPIA Persuasion Scenarios**, AutoGluon Ensemble, and perform first "Self-Evolved" meta-analysis.
 
 ---
-**Success Criteria:** The system autonomously navigates the web to verify signals, refactors its own architecture for 2x performance, and deploys itself to the cheapest available cloud provider without human intervention.
+**Success Criteria:** The system autonomously predicts social contagion events with 94% accuracy, supported by generative behavioral proof and quantitative numerical forecasting.
