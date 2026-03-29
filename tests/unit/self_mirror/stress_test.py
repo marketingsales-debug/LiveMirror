@@ -1,7 +1,7 @@
 import time
 import pytest
 from backend.self_mirror.security import validate_command
-from backend.self_mirror.services import ExecutionService
+from backend.self_mirror.services import HostExecutionService
 
 def test_redos_vulnerability():
     """Test if the validate_command regexes are vulnerable to ReDoS."""
@@ -16,7 +16,7 @@ def test_redos_vulnerability():
 
 def test_resource_exhaustion():
     """Test if the resource limits prevent a CPU/Memory hang."""
-    es = ExecutionService(".", timeout=2)
+    es = HostExecutionService(".", timeout=2)
     start_time = time.time()
     # Trying to execute an allowed command but with a sleep or infinite loop if we could.
     # Since python -c is blocked, let's just test the timeout on an allowed command that might hang.
