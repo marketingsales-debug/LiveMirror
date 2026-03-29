@@ -38,7 +38,7 @@ Transform to an "Open-Book" architecture, decoupling facts from reasoning.
 Implement two-stage inference (Trajectory + Synthesis).
 
 ## ✅ Phase 12: Autonomous R&D Verification (PaperBench)
-Establish "Human-Level" standards with Golden Rubrics.
+Establish "Human-Level" standards with Golden Rubrics and **Judge Agents**.
 
 ## 🔬 Phase 13: Scientific Experimentation & Reporting (CodeScientist)
 Automate the end-to-end scientific method for architectural discovery.
@@ -62,24 +62,24 @@ Implement self-optimizing prompts and agent flight recording.
 Transform the system into a 3D predictive command center (React Flow, Three.js).
 
 ## 🐟 Phase 20: Massive Swarm Intelligence (MiroFish)
-Upgrade from 50 to 10,000+ synthetic agents.
-*   **Swarm Orchestrator:** Integrate MiroFish logic to spawn agents with unique personalities and social connections.
-*   **Emergent Forecasting:** Predict market tipping points through the collective "Wisdom of the Swarm."
+Upgrade from 50 to 10,000+ synthetic agents with unique personalities.
 
 ## 📊 Phase 21: Institutional Data Fusion (OpenBB + RAGFlow)
-Integrate "Ground Truth" financial and structural data.
-*   **OpenBB Terminal:** Connect agents to institutional-level real-time market data.
-*   **Structured RAG (RAGFlow):** Ensure agents understand complex reports, charts, and tables from PDFs.
+Connect agents to real-time market data and structured document understanding.
 
 ## 🚀 Phase 22: Secure High-Performance Infrastructure (Phi-4 + vLLM + E2B)
-Deploy the 2026 industrial-grade execution layer.
-*   **Local Brain (vLLM + Phi-4):** Run massive prediction batches through small, smart local models at 10x speed.
-*   **Secure Sandbox (E2B):** Run agent-evolved code and web navigation inside isolated, ephemeral environments.
+Deploy local brain serving at 10x speed inside secure sandboxes.
+
+## 🛡️ Phase 23: Hallucination Guard & Trust Protocol
+Ensure 100% grounded predictions through deterministic constraints.
+*   **Source Citations:** Every prediction must link to a raw signal ID from Crawl4AI.
+*   **Skeptic Cross-Examination:** Implement LangGraph nodes that attempt to refute predictions using RAG context.
+*   **JSON Logic Enforcement:** All reasoning must pass strict Pydantic validation to eliminate "hallucinated rambling."
 
 ## 📅 Roadmap for Implementation
-1.  **Week 1:** Scaffold **LangGraph Board**, **Redpanda**, and **Qdrant**.
+1.  **Week 1:** Scaffold **LangGraph Board**, **Crawl4AI**, and **Hallucination Guard**.
 2.  **Week 2:** Implement **MiroFish Swarm**, OpenBB data, and RARE refactor.
 3.  **Week 3:** Deploy **vLLM Inference Cluster**, 3D Galaxy, and first "Swarm-Evolved" prediction.
 
 ---
-**Success Criteria:** The system autonomously simulates 10,000+ agents against real-time institutional data, hits 94% accuracy with <45ms latency, and costs <$10/day to operate locally.
+**Success Criteria:** The system autonomously simulates 10,000+ agents with 94% accuracy, 0% unverified hallucinations, and <45ms latency.
