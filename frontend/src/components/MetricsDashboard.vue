@@ -2,7 +2,13 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
 type Overview = {
-  predictions: { total: number; last_24h: number; by_variant?: Record<string, number> };
+  predictions: {
+    total: number;
+    last_24h: number;
+    by_variant?: Record<string, number>;
+    variants?: Record<string, { count: number; avg_confidence: number; avg_latency_ms: number }>;
+    variant_alerts?: { level: string; message: string }[];
+  };
   accuracy: { current: number; trend: string; history: number[] };
   latency: { avg_ms: number; p95_ms: number; target_ms: number };
   cache: { hit_rate: number; hits: number; misses: number };
@@ -88,15 +94,27 @@ onUnmounted(() => {
         <span class="sub">{{ overview.cache.hits }} hits / {{ overview.cache.misses }} misses</span>
       </div>
     </div>
-    <div v-if="overview?.predictions.by_variant" class="variant-grid">
+    <div v-if="overview?.predictions.variants" class="variant-grid">
       <div
-        v-for="(count, variant) in overview.predictions.by_variant"
+        v-for="(stats, variant) in overview.predictions.variants"
         :key="variant"
         class="variant-card"
       >
         <span class="label">Variant</span>
         <span class="value">{{ variant }}</span>
-        <span class="sub">{{ count }} predictions</span>
+        <span class="sub">{{ stats.count }} predictions</span>
+        <span class="sub">Avg conf: {{ (stats.avg_confidence * 100).toFixed(1) }}%</span>
+        <span class="sub">Avg latency: {{ stats.avg_latency_ms.toFixed(1) }}ms</span>
+      </div>
+    </div>
+    <div v-if="overview?.predictions.variant_alerts?.length" class="alerts">
+      <div
+        v-for="(a, idx) in overview.predictions.variant_alerts"
+        :key="idx"
+        class="alert"
+        :class="a.level"
+      >
+        {{ a.message }}
       </div>
     </div>
 

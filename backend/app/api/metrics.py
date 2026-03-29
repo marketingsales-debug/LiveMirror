@@ -59,12 +59,52 @@ async def metrics_overview() -> Dict[str, Any]:
         variant = p.get("variant", "control")
         by_variant[variant] = by_variant.get(variant, 0) + 1
 
+    recent_predictions = predictions[-200:] if len(predictions) > 200 else predictions
+    variant_stats: Dict[str, Dict[str, float]] = {}
+    for p in recent_predictions:
+        variant = p.get("variant", "control")
+        entry = variant_stats.setdefault(variant, {
+            "count": 0,
+            "confidence_total": 0.0,
+            "latency_total": 0.0,
+        })
+        entry["count"] += 1
+        entry["confidence_total"] += float(p.get("confidence", 0.0))
+        entry["latency_total"] += float(p.get("latency_ms", 0.0))
+
+    variants: Dict[str, Dict[str, float]] = {}
+    for variant, entry in variant_stats.items():
+        count = max(int(entry["count"]), 1)
+        variants[variant] = {
+            "count": int(entry["count"]),
+            "avg_confidence": round(entry["confidence_total"] / count, 4),
+            "avg_latency_ms": round(entry["latency_total"] / count, 2),
+        }
+
+    variant_alerts: List[Dict[str, str]] = []
+    control = variants.get("control")
+    candidate = variants.get("candidate")
+    if control and candidate and control["count"] >= 5 and candidate["count"] >= 5:
+        delta = candidate["avg_confidence"] - control["avg_confidence"]
+        if delta < -0.10:
+            variant_alerts.append({
+                "level": "critical",
+                "message": f"Candidate confidence is {abs(delta)*100:.1f}% below control.",
+            })
+        elif delta < -0.05:
+            variant_alerts.append({
+                "level": "warning",
+                "message": f"Candidate confidence is {abs(delta)*100:.1f}% below control.",
+            })
+
     return {
         "timestamp": datetime.now().isoformat(),
         "predictions": {
             "total": total_predictions,
             "last_24h": sum(1 for p in predictions if p["ts"] > datetime.now() - timedelta(hours=24)),
             "by_variant": by_variant,
+            "variants": variants,
+            "variant_alerts": variant_alerts,
         },
         "accuracy": {
             "current": recent_accuracy[-1] if recent_accuracy else 0.86,

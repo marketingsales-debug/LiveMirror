@@ -7,6 +7,10 @@ Extracted from Stanford Generative Agents and SocioVerse patterns.
 from typing import List, Dict, Any, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+import random
+
+from ...shared.types import AgentPersona, AgentRole
 
 @dataclass
 class SocialAgent:
@@ -45,3 +49,167 @@ class SocialAgent:
         )
         summary = await llm_fn(prompt)
         self.beliefs = summary
+
+
+class ActionType(str, Enum):
+    """Discrete actions an agent can take in a round."""
+    CREATE_POST = "CREATE_POST"
+    COMMENT = "COMMENT"
+    LIKE = "LIKE"
+    SHARE = "SHARE"
+    IGNORE = "IGNORE"
+
+
+@dataclass
+class AgentDecision:
+    """Decision emitted by the behavior engine for a single agent."""
+    agent_id: int
+    action: ActionType
+    sentiment: float
+    influence_delta: float
+    target_agent_id: Optional[int] = None
+
+
+# Role-based action priors (weights)
+ROLE_ACTION_WEIGHTS: Dict[AgentRole, Dict[ActionType, float]] = {
+    AgentRole.INDIVIDUAL: {
+        ActionType.CREATE_POST: 0.15,
+        ActionType.COMMENT: 0.25,
+        ActionType.LIKE: 0.35,
+        ActionType.SHARE: 0.10,
+        ActionType.IGNORE: 0.15,
+    },
+    AgentRole.INFLUENCER: {
+        ActionType.CREATE_POST: 0.35,
+        ActionType.COMMENT: 0.25,
+        ActionType.LIKE: 0.20,
+        ActionType.SHARE: 0.10,
+        ActionType.IGNORE: 0.10,
+    },
+    AgentRole.MEDIA: {
+        ActionType.CREATE_POST: 0.40,
+        ActionType.COMMENT: 0.20,
+        ActionType.LIKE: 0.15,
+        ActionType.SHARE: 0.15,
+        ActionType.IGNORE: 0.10,
+    },
+    AgentRole.ORGANIZATION: {
+        ActionType.CREATE_POST: 0.25,
+        ActionType.COMMENT: 0.20,
+        ActionType.LIKE: 0.25,
+        ActionType.SHARE: 0.10,
+        ActionType.IGNORE: 0.20,
+    },
+    AgentRole.GOVERNMENT: {
+        ActionType.CREATE_POST: 0.20,
+        ActionType.COMMENT: 0.20,
+        ActionType.LIKE: 0.20,
+        ActionType.SHARE: 0.10,
+        ActionType.IGNORE: 0.30,
+    },
+    AgentRole.EXPERT: {
+        ActionType.CREATE_POST: 0.25,
+        ActionType.COMMENT: 0.30,
+        ActionType.LIKE: 0.20,
+        ActionType.SHARE: 0.10,
+        ActionType.IGNORE: 0.15,
+    },
+    AgentRole.BOT: {
+        ActionType.CREATE_POST: 0.30,
+        ActionType.COMMENT: 0.25,
+        ActionType.LIKE: 0.15,
+        ActionType.SHARE: 0.20,
+        ActionType.IGNORE: 0.10,
+    },
+}
+
+
+class AgentBehaviorEngine:
+    """Lightweight behavior engine for simulation rounds."""
+
+    def __init__(self, seed: Optional[int] = None):
+        self._rng = random.Random(seed)
+
+    def should_activate(self, agent: AgentPersona, round_num: int) -> bool:
+        """Determine whether an agent is active this round."""
+        active_hours = agent.fingerprint.active_hours or list(range(24))
+        hour = round_num % 24
+        if hour not in active_hours:
+            return False
+        threshold = max(0.05, min(1.0, agent.activity_level))
+        return self._rng.random() < threshold
+
+    def decide_action(
+        self,
+        agent: AgentPersona,
+        topic_sentiment: float,
+        recent_actions: List[AgentDecision],
+    ) -> AgentDecision:
+        """Decide an action based on role priors and current sentiment."""
+        weights = ROLE_ACTION_WEIGHTS.get(agent.role, ROLE_ACTION_WEIGHTS[AgentRole.INDIVIDUAL])
+        action = self._sample_action(weights)
+
+        sentiment = agent.sentiment_bias + (topic_sentiment * 0.3) + self._rng.uniform(-0.1, 0.1)
+        sentiment = max(-1.0, min(1.0, sentiment))
+
+        influence_delta = 0.0
+        if action != ActionType.IGNORE:
+            influence_delta = agent.influence_weight * self._rng.uniform(0.02, 0.08)
+
+        target_agent_id = None
+        if action in {ActionType.COMMENT, ActionType.SHARE} and recent_actions:
+            target_agent_id = self._rng.choice(recent_actions).agent_id
+
+        return AgentDecision(
+            agent_id=agent.agent_id,
+            action=action,
+            sentiment=sentiment,
+            influence_delta=influence_delta,
+            target_agent_id=target_agent_id,
+        )
+
+    def apply_influence(self, agent: AgentPersona, decisions: List[AgentDecision]) -> float:
+        """Adjust agent sentiment based on others' actions."""
+        if not decisions:
+            return 0.0
+
+        shift = 0.0
+        for decision in decisions:
+            if decision.agent_id == agent.agent_id or decision.action == ActionType.IGNORE:
+                continue
+            trust = agent.trust_network.get(decision.agent_id, 0.5)
+            shift += decision.sentiment * trust * agent.fingerprint.persuadability * 0.05
+
+        if shift == 0.0:
+            return 0.0
+
+        original = agent.sentiment_bias
+        agent.sentiment_bias = max(-1.0, min(1.0, agent.sentiment_bias + shift))
+        return abs(agent.sentiment_bias - original)
+
+    def update_trust(
+        self,
+        actor: AgentPersona,
+        target_agent_id: int,
+        action: ActionType,
+        alignment: float,
+    ) -> None:
+        """Update trust between agents based on action and alignment."""
+        if action == ActionType.IGNORE:
+            return
+        delta = (alignment - 0.5) * 0.1
+        if action in {ActionType.LIKE, ActionType.SHARE}:
+            delta += 0.02
+        actor.update_trust(target_agent_id, delta)
+
+    def _sample_action(self, weights: Dict[ActionType, float]) -> ActionType:
+        total = sum(weights.values())
+        if total <= 0:
+            return ActionType.IGNORE
+        r = self._rng.random() * total
+        upto = 0.0
+        for action, w in weights.items():
+            upto += w
+            if r <= upto:
+                return action
+        return ActionType.IGNORE
