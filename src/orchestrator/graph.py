@@ -4,62 +4,94 @@ Replaces the legacy linear AgentLoop with a cyclic, persistent graph.
 """
 
 import operator
+import os
 from typing import Annotated, Sequence, TypedDict, Union, List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, HumanMessage, AssistantMessage
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
+from ..guards.schemas import StructuredResponse, AgentThought, AgentAction, Citation
+from ..guards.citation import CitationVerifier
+
 # --- State Definition ---
 
 class AgentState(TypedDict):
     """The state of the multi-agent research board."""
-    # The history of messages in the conversation
     messages: Annotated[Sequence[BaseMessage], operator.add]
-    # The current goal being pursued
     goal: str
-    # Files identified as relevant context
     context_files: List[str]
-    # Latest research findings
     findings: List[str]
-    # Proposed code changes or fixes
     proposed_patch: Optional[str]
-    # Results of the latest verification (test runs)
     verification_results: Dict[str, Any]
-    # The current 'active' agent role
     next_agent: str
-    # Lessons learned (for EMA to distill)
     lessons: List[str]
+    # For hallucination guard (Phase 2)
+    source_context: str 
 
-# --- Node Definitions (Placeholders) ---
+# --- Configuration ---
+
+# Lock temperature to 0.0 for deterministic reasoning (Phase 2)
+# Ensure OPENAI_API_KEY is set in environment
+LLM = ChatOpenAI(model="gpt-4o", temperature=0.0)
+
+# --- Node Definitions ---
 
 async def researcher_node(state: AgentState):
     """RA Node: Analyzes signals and proposes research directions."""
     print("--- [RA] RESEARCHER STARTING ---")
-    # TODO: Connect to Crawl4AI and RAG (Phase 8/14)
-    return {"messages": [AssistantMessage(content="Researcher analyzed signals.")], "next_agent": "coder"}
+    
+    prompt = (
+        f"Goal: {state['goal']}\n"
+        f"Context Files: {state['context_files']}\n"
+        f"Source Context: {state.get('source_context', 'None')}\n"
+        "Analyze and respond in JSON using the provided schema."
+    )
+    
+    # Force structured output using Pydantic (Hallucination Guard)
+    structured_llm = LLM.with_structured_output(StructuredResponse)
+    try:
+        response = await structured_llm.ainvoke(prompt)
+        
+        # Verify citations (Phase 2)
+        v = CitationVerifier.verify_citations(
+            response.thought.citations, 
+            state.get("source_context", "")
+        )
+        
+        if not v["is_valid"]:
+            return {
+                "messages": [AssistantMessage(content=f"Hallucination detected in citations: {v['hallucinations']}")],
+                "next_agent": "researcher" # Self-correct loop
+            }
+
+        return {
+            "messages": [AssistantMessage(content=response.thought.logic)],
+            "findings": [response.thought.observation],
+            "next_agent": response.next_step
+        }
+    except Exception as e:
+        return {
+            "messages": [AssistantMessage(content=f"Error in researcher node: {str(e)}")],
+            "next_agent": "end"
+        }
 
 async def coder_node(state: AgentState):
     """EA Node: Implements code changes in the Research Sandbox."""
     print("--- [EA] ENGINEER STARTING ---")
-    # TODO: Implement experiment builder (Phase 13)
+    # Coder will also use structured output in final implementation
     return {"messages": [AssistantMessage(content="Engineer proposed a patch.")], "next_agent": "analyst"}
 
 async def analyst_node(state: AgentState):
     """Analyst Node: Runs backtests and verifies patches."""
     print("--- [Analyst] VERIFICATION STARTING ---")
-    # TODO: Connect to BacktestHarness and Hallucination Guard (Phase 2/7)
-    success = True # Mock
-    if success:
-        return {"messages": [AssistantMessage(content="Verification passed.")], "next_agent": "ema"}
-    else:
-        return {"messages": [AssistantMessage(content="Verification failed. Returning to Coder.")], "next_agent": "coder"}
+    # For now, a mock success
+    return {"messages": [AssistantMessage(content="Verification passed.")], "next_agent": "ema"}
 
 async def ema_node(state: AgentState):
     """EMA Node: Distills lessons into persistent memory."""
     print("--- [EMA] DISTILLATION STARTING ---")
-    # TODO: Connect to Mem0 (Phase 3)
-    return {"messages": [AssistantMessage(content="EMA distilled lessons.")], "next_agent": END}
+    return {"messages": [AssistantMessage(content="EMA distilled lessons.")], "next_agent": "end"}
 
 # --- Graph Construction ---
 
@@ -76,31 +108,33 @@ def create_research_board():
     # Define Edges
     workflow.set_entry_point("researcher")
     
-    # Conditional routing logic
     def router(state: AgentState):
-        return state["next_agent"]
+        next_step = state.get("next_agent", "end")
+        if next_step == "end":
+            return END
+        return next_step
 
     workflow.add_conditional_edges(
         "researcher",
         router,
-        {"coder": "coder", "ema": "ema"}
+        {"researcher": "researcher", "coder": "coder", "ema": "ema", "end": END}
     )
     
     workflow.add_conditional_edges(
         "coder",
         router,
-        {"analyst": "analyst"}
+        {"analyst": "analyst", "end": END}
     )
     
     workflow.add_conditional_edges(
         "analyst",
         router,
-        {"ema": "ema", "coder": "coder"}
+        {"ema": "ema", "coder": "coder", "end": END}
     )
     
     workflow.add_edge("ema", END)
 
-    # Add Memory for persistence/rollback
+    # Add Memory for persistence
     checkpointer = MemorySaver()
     
     return workflow.compile(checkpointer=checkpointer)

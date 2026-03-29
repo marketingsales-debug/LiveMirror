@@ -191,6 +191,35 @@ class FineTuningLoop:
         if self.pipeline is None:
             raise ValueError("No fusion pipeline provided")
         
+        run_id = f"ft_{uuid.uuid4().hex[:12]}"
+        emit_fine_tune_started = None
+        emit_fine_tune_progress = None
+        emit_fine_tune_completed = None
+        record_fine_tune = None
+        try:
+            from backend.app.api.stream import (
+                emit_fine_tune_started as _emit_started,
+                emit_fine_tune_progress as _emit_progress,
+                emit_fine_tune_completed as _emit_completed,
+            )
+            from backend.app.api.metrics import record_fine_tune as _record_fine_tune
+            emit_fine_tune_started = _emit_started
+            emit_fine_tune_progress = _emit_progress
+            emit_fine_tune_completed = _emit_completed
+            record_fine_tune = _record_fine_tune
+        except ImportError:
+            pass
+        
+        def _fire_and_forget(coro) -> None:
+            if coro is None:
+                return
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                asyncio.run(coro)
+            else:
+                loop.create_task(coro)
+        
         # 1. Save current weights for potential rollback
         self._save_weights()
         
@@ -200,6 +229,13 @@ class FineTuningLoop:
         
         # 3. Measure pre-tune accuracy (using validation set)
         pre_accuracy = self._compute_accuracy(val_data)
+        epochs_target = 20
+        if emit_fine_tune_started is not None:
+            _fire_and_forget(emit_fine_tune_started(
+                run_id=run_id,
+                samples=len(samples),
+                epochs=epochs_target,
+            ))
         
         # 4. Convert samples to training format
         inputs, targets = self._samples_to_training_data(train_data)
@@ -212,7 +248,7 @@ class FineTuningLoop:
         epochs_run = 0
         early_stopped = False
         
-        for epoch in range(20):  # Max 20 epochs
+        for epoch in range(epochs_target):  # Max epochs_target epochs
             # Train step
             loss = self._train_step(inputs, targets)
             loss_history.append(loss)
@@ -223,6 +259,15 @@ class FineTuningLoop:
             val_loss_history.append(val_loss)
             
             epochs_run = epoch + 1
+            
+            if emit_fine_tune_progress is not None:
+                _fire_and_forget(emit_fine_tune_progress(
+                    run_id=run_id,
+                    epoch=epochs_run,
+                    total_epochs=epochs_target,
+                    loss=float(val_loss),
+                    accuracy=float(pre_accuracy),
+                ))
             
             # Early stopping check
             if val_loss < best_val_loss:
@@ -244,10 +289,12 @@ class FineTuningLoop:
             regression_passed = self._run_regression_test(pre_accuracy)
         
         # 7. Rollback if degraded or regression failed
+        rollback = False
         if improvement < 0 or not regression_passed:
             self._restore_weights()
             post_accuracy = pre_accuracy
             improvement = 0.0
+            rollback = True
         
         # 8. Record result
         result = FineTuneResult(
@@ -266,6 +313,24 @@ class FineTuningLoop:
         # 9. Clear used samples
         self._pending_samples = self._pending_samples[len(samples):]
         self._last_tune_at = datetime.now()
+        
+        if emit_fine_tune_completed is not None:
+            _fire_and_forget(emit_fine_tune_completed(
+                run_id=run_id,
+                samples=len(samples),
+                pre_accuracy=pre_accuracy,
+                post_accuracy=post_accuracy,
+                improvement=improvement,
+                rollback=rollback,
+            ))
+        
+        if record_fine_tune is not None:
+            _fire_and_forget(record_fine_tune(
+                samples=len(samples),
+                pre_accuracy=pre_accuracy,
+                post_accuracy=post_accuracy,
+                rollback=rollback,
+            ))
         
         return result
     

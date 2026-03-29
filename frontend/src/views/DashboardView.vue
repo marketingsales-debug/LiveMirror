@@ -7,6 +7,7 @@ import DebatePanel from '../components/DebatePanel.vue';
 import PlatformHealth from '../components/PlatformHealth.vue';
 import PredictionHistory from '../components/PredictionHistory.vue';
 import LearningStatsPanel from '../components/LearningStatsPanel.vue';
+import MetricsDashboard from '../components/MetricsDashboard.vue';
 
 // Reactive State
 const topicInput = ref('AI Regulation');
@@ -356,6 +357,9 @@ onUnmounted(() => {
             </div>
           </div>
         </section>
+        <section class="metrics-panel glass-panel">
+          <MetricsDashboard />
+        </section>
         <section class="learning-panel glass-panel">
           <LearningStatsPanel />
         </section>
@@ -558,6 +562,11 @@ nav a:hover, nav a.active {
 }
 
 .learning-panel {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+.metrics-panel {
   padding: 24px;
   display: flex;
   flex-direction: column;

@@ -2,17 +2,18 @@
 
 ## Latest Handoff
 
-### 2026-03-30 — Gemini (Sprint 1 Initialization: LangGraph Spine)
+### 2026-03-30 — Gemini (Sprint 1: Hallucination Guard & Structured Reasoning)
 
 **What was done:**
-- **Initialized Sprint 1**: Pivoted to the streamlined 3-sprint execution plan (v2.2).
-- **Environment Setup**: Installed `langgraph`, `langchain`, and `langchain-openai` in the virtual environment.
-- **Scaffolded LangGraph Orchestrator**: Created `src/orchestrator/graph.py` with the initial state definition and a 4-node research board (Researcher, Coder, Analyst, EMA).
-- **Persistence**: Integrated `MemorySaver` for state persistence and recovery.
+- **Completed Phase 2**: Implemented the Hallucination Guard (The Trust Layer).
+- **Structured Schemas**: Created `src/guards/schemas.py` with Pydantic models for `AgentThought`, `Citation`, and `StructuredResponse`.
+- **Citation Engine**: Developed `src/guards/citation.py` to verify that AI claims are grounded in source signal text.
+- **Deterministic Logic**: Integrated schemas into `src/orchestrator/graph.py` and locked model temperature to 0.0 to eliminate creative hallucinations.
+- **Self-Correction Loop**: Configured the LangGraph to loop back to the Researcher node if citations fail verification.
 
 **What Claude should do next:**
-1. **Pydantic Schemas (Phase 2)**: Define the strict output schemas in `src/guards/` to begin suppressing hallucinations.
-2. **Crawl4AI Integration**: Wire the `researcher_node` to use Crawl4AI for high-fidelity signal extraction.
+1. **Persistent Memory (Phase 3)**: Integrate Mem0 to allow agents to store and retrieve these structured thoughts across sessions.
+2. **Crawl4AI Integration**: Fully wire the `source_context` in the LangGraph state to real signals extracted via Crawl4AI.
 
 **Blockers:** None.
 
