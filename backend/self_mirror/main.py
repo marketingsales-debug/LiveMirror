@@ -13,17 +13,8 @@ from .security import require_auth
 
 router = APIRouter()
 
-PROJECT_ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
-_loop: Optional[AgentLoop] = None
-
-
-def get_loop() -> AgentLoop:
-    """Get the shared agent loop instance."""
-    global _loop
-    if _loop is None:
-        _loop = AgentLoop(workspace_root=PROJECT_ROOT)
-    return _loop
-
+# Resolve PROJECT_ROOT relative to this file's directory
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 class GoalRequest(BaseModel):
     goal: str
@@ -39,7 +30,8 @@ class GoalResponse(BaseModel):
 @router.post("/goal", response_model=GoalResponse)
 async def start_goal(request: GoalRequest, _auth: str = Depends(require_auth)):
     """Start the Think-Apply-Verify cycle for a goal (auth required)."""
-    loop = get_loop()
+    # Instantiate a fresh loop per request for concurrency safety
+    loop = AgentLoop(workspace_root=PROJECT_ROOT)
     try:
         thoughts = await loop.run_goal(
             request.goal,
@@ -54,7 +46,7 @@ async def start_goal(request: GoalRequest, _auth: str = Depends(require_auth)):
 @router.get("/files")
 async def list_workspace_files(_auth: str = Depends(require_auth)):
     """Returns all files the agent can see (auth required)."""
-    loop = get_loop()
+    loop = AgentLoop(workspace_root=PROJECT_ROOT)
     try:
         files = loop.files.list_files()
         return {"files": files}
@@ -65,7 +57,7 @@ async def list_workspace_files(_auth: str = Depends(require_auth)):
 @router.post("/exec")
 async def run_command(command: str, _auth: str = Depends(require_auth)):
     """Run a terminal command — validated against allowlist (auth required)."""
-    loop = get_loop()
+    loop = AgentLoop(workspace_root=PROJECT_ROOT)
     try:
         result = loop.exec.run_command(command)
         return result
