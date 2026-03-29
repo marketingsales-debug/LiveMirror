@@ -2,6 +2,35 @@
 
 ## Latest Handoff
 
+### 2026-03-30 — Claude (Backtesting Harness) — Model: Claude Opus 4.5
+
+**What was done:**
+- Created `src/backtesting/harness.py`: Complete backtesting framework for fusion pipeline validation
+- Key components:
+  - `HistoricalSignal`: Dataclass for signals with known outcomes (bullish/bearish/neutral)
+  - `BacktestResult`: Per-signal prediction result with correctness and error metrics
+  - `BacktestMetrics`: Aggregate stats including accuracy, precision/recall, F1, calibration error, Brier score
+  - `BacktestHarness`: Main orchestrator with `load_historical_signals()`, `generate_synthetic_signals()`, `run_backtest()`, `export_results()`, `summary()`
+- Features:
+  - JSON-based historical signal loading
+  - Synthetic signal generation with reproducible seeds
+  - Platform-wise and modality-count breakdowns
+  - Calibration metrics (mean confidence vs accuracy, Brier score)
+  - Full confusion matrix tracking
+  - Human-readable summary output
+- 31 unit tests in `tests/backtesting/test_harness.py` → **all passed**
+
+**Why:** Stream B Week 2 deliverable—validate end-to-end fusion accuracy before wiring fine-tuning loop. Enables data-driven calibration and regression testing.
+
+**What to do next:**
+1. Wire `BacktestHarness` into `LearningLoop` for automated calibration feedback
+2. Connect to SSE for real-time backtest progress (optional)
+3. Build fine-tuning loop (Stream B Week 3) using backtest metrics
+
+**Blockers:** None.
+
+---
+
 ### 2026-03-29 — Gemini (Final Security Hardening & v2.0 Planning)
 
 **What was done:**
