@@ -1,55 +1,61 @@
-# LiveMirror: Streamlined v2.0 Execution Plan
-**Version:** 2.1 (Sane & Sprint-Based)  
-**Status:** Sprint 1 Initialization  
+# LiveMirror: Lean v2.0 Execution Plan
+**Version:** 2.2 (The Lean Stack)  
 **Baseline:** 86% Accuracy | **Target:** 94% (Verified via BacktestHarness)
 
 ---
 
-## 📅 Sprint 1: The Foundation (Weeks 1-2)
-**Goal:** Build a stateful, reliable spine that does not hallucinate.
-
-*   **[ ] Phase 1: LangGraph Transition**
-    *   Replace `agent_logic.py` with `src/orchestrator/graph.py`.
-    *   Implement state persistence and error recovery nodes.
-*   **[ ] Phase 2: Hallucination Guard (The Trust Layer)**
-    *   Strict Pydantic schema enforcement for all LLM outputs.
-    *   Source Citation Engine: Every claim must map to a signal ID.
-    *   Locked temperature (0.0) for deterministic reasoning.
-*   **[ ] Phase 3: Persistent Memory (Mem0)**
-    *   Integrate Mem0 to track agent "lessons learned" across sessions.
-
-## 📅 Sprint 2: The Intelligence (Weeks 3-4)
-**Goal:** Shift from pattern-matching to deep logical reasoning.
-
-*   **[ ] Phase 4: RARE Reasoning Architecture**
-    *   Implement "Open-Book" distillation. 
-    *   Decouple Signal Knowledge (RAG) from Narrative Logic (Transformer).
-*   **[ ] Phase 5: RouteLLM (Cost Efficiency)**
-    *   Deploy router to send simple tasks to local models, saving budget for RARE reasoning.
-*   **[ ] Phase 6: Multi-Agent Research Board**
-    *   Deploy specialized nodes: Researcher (RA), Engineer (EA), and Analyst.
-
-## 📅 Sprint 3: Data & Verification (Weeks 5-6)
-**Goal:** Scale the data quality and prove the 94% accuracy.
-
-*   **[ ] Phase 7: Scientific Verification (PaperBench)**
-    *   Implement Golden Rubrics for all core components.
-    *   Deploy a "Judge Agent" to audit board proposals.
-*   **[ ] Phase 8: Relational Memory (Qdrant + LightRAG)**
-    *   Upgrade from local storage to high-velocity vector and graph retrieval.
-*   **[ ] Phase 9: Delta Signal Analysis**
-    *   Implement "Emotional Acceleration" metrics to predict tipping points.
+## 🏗️ The Lean Architecture (4 Core Dependencies)
+1.  **LangGraph** (Orchestration OS)
+2.  **Qdrant** (Vector Memory)
+3.  **vLLM** (Local Inference Serving)
+4.  **Crawl4AI** (High-Fidelity Scraping)
 
 ---
 
-## 🛡️ The "Mini-Pilot" Gate (Standard Operating Procedure)
-No code is merged into `main` without passing the following:
-1.  **Syntax Check**: Does it run?
-2.  **Logic Check**: Does it pass the specific unit test?
-3.  **Regression Check**: Does the overall accuracy stay >= current baseline?
+## 📅 Sprint 1: Foundation & Reliability (Weeks 1-2)
+**Goal:** Build the stateful spine and eliminate hallucinations.
+
+*   **[ ] Module: `src/orchestrator/` (LangGraph Transition)**
+    *   Implement the multi-agent state machine.
+    *   Nodes: Researcher, Coder, Analyst, EMA.
+*   **[ ] Module: `src/guards/` (Hallucination Guard)**
+    *   Strict Pydantic schema validation for all LLM outputs.
+    *   Citation Engine: Logic to verify claims against Crawl4AI signal IDs.
+*   **[ ] Module: `src/memory/` (Simplified Memory Tier)**
+    *   **Vector:** Qdrant integration.
+    *   **Session:** SQLite store for agent interaction history (extracted from Mem0).
+    *   **Graph:** LLM-based Triple Extraction (extracted from LightRAG).
+
+## 📅 Sprint 2: Intelligence & Routing (Weeks 3-4)
+**Goal:** Move from "Guessing" to "Reasoning" while optimizing costs.
+
+*   **[ ] Module: `src/reasoning/` (Logical RARE Architecture)**
+    *   Open-book prompting (Force RAG retrieval).
+    *   Shifted-Thinking Window (extracted from Z1).
+    *   Rejection-sampled distillation for training student models.
+*   **[ ] Module: `src/routing/` (Economic Routing)**
+    *   Implement a simple signal-complexity scorer.
+    *   Route easy signals to local models, hard signals to GPT-5.1.
+*   **[ ] Module: `src/observability/` (The Flight Recorder)**
+    *   Structured JSON logging of every prediction cycle.
+    *   Cost and latency metrics tracking (extracted from AgentOps).
+
+## 📅 Sprint 3: Simulation & Skills (Weeks 5-6)
+**Goal:** Scale social behavior and verify the 94% accuracy.
+
+*   **[ ] Module: `src/simulation/` (Generative Behavior)**
+    *   Add Memory Stream and Reflection to agents (extracted from Stanford).
+    *   Implement susceptibility scores for contagion modeling.
+*   **[ ] Module: `src/skills/` (Expertise Packs)**
+    *   Elo-based Signal Tournament logic.
+    *   Modality Ablation workflow.
+*   **[ ] Final Calibration:**
+    *   Run PaperBench-style reproduction tests to prove 94% accuracy.
 
 ---
 
-## 📊 Concrete Target Definitions
-*   **94% Accuracy**: Success rate in predicting the **Direction** (Bullish/Bearish) of a narrative tipping point 1 hour in advance, measured against the ICML historical dataset.
-*   **45ms Latency**: End-to-end processing time for a single multimodal signal cluster.
+## 🛡️ The "Mini-Pilot" SOP
+Every commit must pass:
+1.  **Syntax**: `python -m compileall .`
+2.  **Logic**: Pass the specific `pytest` for the new module.
+3.  **Regression**: Backtest accuracy must not drop below 86%.
