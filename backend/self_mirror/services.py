@@ -1,12 +1,15 @@
 """
 SelfMirror Services — the 'limbs' of the autonomous agent.
-Provides safe file I/O and command execution.
+Provides safe file I/O and sandboxed command execution.
 """
 
 import os
+import shlex
 import subprocess
 from typing import List, Optional
 from pathlib import Path
+
+from .security import validate_command
 
 class FileService:
     """Safe read/write operations for the agent."""
@@ -71,35 +74,53 @@ class FileService:
         for root, _, filenames in os.walk(full_path):
             for f in filenames:
                 rel = os.path.relpath(os.path.join(root, f), self.base_path)
-                if ".git" not in rel and "__pycache__" not in rel:
+                skip = (".git", "__pycache__", "node_modules", ".venv", ".pytest_cache")
+                if not any(s in rel for s in skip):
                     files.append(rel)
         return sorted(files)
 
 
 class ExecutionService:
-    """Run shell commands and capture output."""
+    """Sandboxed command execution with allowlist enforcement."""
 
-    def __init__(self, cwd: str):
+    def __init__(self, cwd: str, timeout: int = 120):
         self.cwd = cwd
+        self.timeout = timeout
 
     def run_command(self, command: str) -> dict:
-        """Execute a command and return stdout/stderr."""
+        """Execute a command after validating against the allowlist."""
+        # 1. Validate before executing
+        check = validate_command(command)
+        if not check["allowed"]:
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": f"BLOCKED: {check['reason']}",
+                "exit_code": -1,
+            }
+
+        # 2. Execute using shlex split (no shell=True)
         try:
+            args = shlex.split(command)
             result = subprocess.run(
-                command,
-                shell=True,
+                args,
                 cwd=self.cwd,
                 capture_output=True,
                 text=True,
-                timeout=60  # Safety timeout
+                timeout=self.timeout,
             )
             return {
                 "success": result.returncode == 0,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "exit_code": result.returncode
+                "stdout": result.stdout[-5000:],  # cap output size
+                "stderr": result.stderr[-2000:],
+                "exit_code": result.returncode,
             }
         except subprocess.TimeoutExpired:
-            return {"success": False, "stderr": "Command timed out (60s limit).", "exit_code": -1}
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": f"Command timed out ({self.timeout}s limit).",
+                "exit_code": -1,
+            }
         except Exception as e:
-            return {"success": False, "stderr": str(e), "exit_code": -1}
+            return {"success": False, "stdout": "", "stderr": str(e), "exit_code": -1}

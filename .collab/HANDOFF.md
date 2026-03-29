@@ -2,6 +2,24 @@
 
 ## Latest Handoff
 
+### 2026-03-29 — Gemini (Security Audit & SelfMirror Hardening)
+
+**What was done:**
+- **Security Audit of SelfMirror**: Identified High Severity vulnerability where `python -c` allowed arbitrary code execution, bypassing command allowlists.
+- **Fixed `security.py` regex**: Corrected the word boundary anchor for redirection patterns (e.g., `> /dev/null`) to ensure they are properly blocked.
+- **Hardening Command Allowlist**: Removed `python -c` from `ALLOWED_COMMAND_PREFIXES` to prevent arbitrary Python execution.
+- **Verification**: Ran all 112 unit tests for SelfMirror; all are now passing after the regex fix.
+
+**What Claude should do next:**
+1. **Further Sandbox Hardening**: Consider moving command execution to a Docker container or a restricted sub-process environment.
+2. **Positional Argument Validation**: Implement stricter checks for allowed commands to prevent parameter-based exploits.
+3. **Audit other allowlisted tools**: Check if `npm`, `ruff`, or `git` have "escape to shell" capabilities that need to be blocked.
+
+**Blockers:**
+None.
+
+---
+
 ### 2026-03-28 — Gemini (SelfMirror IDE: Autonomous Agent Workspace)
 
 **What was done:**
