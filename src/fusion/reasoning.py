@@ -62,6 +62,10 @@ class CrossModalReasoning:
         "sentiment": 0.2,
     }
     
+    # New GPT-5.1 metrics weights
+    INTENT_WEIGHT = 0.4
+    CREDIBILITY_WEIGHT = 0.6
+    
     # Conflict thresholds
     HIGH_CONFLICT_THRESHOLD = 0.6
     MEDIUM_CONFLICT_THRESHOLD = 0.4
@@ -228,14 +232,18 @@ class CrossModalReasoning:
         embeddings_dict: Dict[str, np.ndarray],
         text_sentiment: Optional[float] = None,
         sentiment_data: Optional[Dict[str, float]] = None,
+        intent_data: Optional[Dict[str, Any]] = None,
+        credibility: float = 1.0,
     ) -> CrossModalConflictReport:
         """
-        Comprehensive cross-modal conflict analysis.
+        Comprehensive cross-modal conflict analysis incorporating GPT-5.1 Codex-Max metrics.
         
         Args:
             embeddings_dict: Dict of modality name to 384-dim embedding
             text_sentiment: Optional text sentiment score (-1 to 1)
             sentiment_data: Optional dict with sentiment scores per modality
+            intent_data: Optional intent detection data from GPT-5.1 IntentDetector
+            credibility: Optional author credibility score (0.0 to 1.0)
             
         Returns:
             CrossModalConflictReport with full analysis
@@ -248,7 +256,7 @@ class CrossModalReasoning:
                 overall_conflict=0.0,
                 pairwise_conflicts=[],
                 dominant_conflict_type=ConflictType.NONE,
-                manipulation_risk=0.0,
+                manipulation_risk=round(1.0 - credibility, 3),
                 confidence_penalty=0.0,
                 modalities_analyzed=modalities,
                 reasoning="Single modality - no cross-modal analysis possible",
@@ -277,37 +285,57 @@ class CrossModalReasoning:
             else:
                 dominant_type = ConflictType.UNCERTAINTY
         
-        # Compute manipulation risk
+        # --- Manipulation Risk (Refined by GPT-5.1 Metrics) ---
         manipulation_risk = 0.0
-        if dominant_type == ConflictType.MANIPULATION:
-            manipulation_risk = 0.9
+        intent_manipulation = intent_data.get("intent") == "manipulative" if intent_data else False
+        coordination_detected = intent_data.get("is_coordinated", False) if intent_data else False
+        
+        if coordination_detected:
+            manipulation_risk = 0.95
+            dominant_type = ConflictType.MANIPULATION
+        elif intent_manipulation:
+            manipulation_risk = 0.85
+            dominant_type = ConflictType.MANIPULATION
+        elif dominant_type == ConflictType.MANIPULATION:
+            manipulation_risk = 0.8
         elif dominant_type == ConflictType.DECEPTION:
             manipulation_risk = 0.7
-        elif text_sentiment is not None and text_sentiment > 0.7 and overall_conflict > 0.5:
-            manipulation_risk = 0.6
-        elif overall_conflict > self.HIGH_CONFLICT_THRESHOLD:
-            manipulation_risk = 0.4
         
-        # Compute confidence penalty
-        confidence_penalty = 0.0
+        # Factor in author credibility
+        manipulation_risk = _clamp(manipulation_risk + (1.0 - credibility) * self.CREDIBILITY_WEIGHT)
+        
+        # If text is bullish but conflict is high, boost risk
+        if text_sentiment is not None and text_sentiment > 0.7 and overall_conflict > 0.5:
+            manipulation_risk = _clamp(manipulation_risk + 0.2)
+        
+        # --- Confidence Penalty (Refined by GPT-5.1 Metrics) ---
+        # Heavier penalty if intent is manipulative or credibility is low
+        base_penalty = 0.0
         if overall_conflict > self.HIGH_CONFLICT_THRESHOLD:
-            confidence_penalty = min(0.4, (overall_conflict - 0.4) * 0.6)
+            base_penalty = (overall_conflict - 0.4) * 0.6
         elif overall_conflict > self.MEDIUM_CONFLICT_THRESHOLD:
-            confidence_penalty = (overall_conflict - 0.3) * 0.3
+            base_penalty = (overall_conflict - 0.3) * 0.3
+            
+        credibility_penalty = (1.0 - credibility) * 0.4
+        intent_penalty = 0.2 if intent_manipulation else 0.0
+        
+        confidence_penalty = _clamp(base_penalty + credibility_penalty + intent_penalty, 0.0, 0.6)
         
         # Generate reasoning
         reasoning_parts = []
-        if dominant_type == ConflictType.NONE:
-            reasoning_parts.append(f"All {len(modalities)} modalities are well-aligned")
-        else:
-            high_conflict_pairs = [pc for pc in pairwise if pc.conflict_score >= self.HIGH_CONFLICT_THRESHOLD]
-            if high_conflict_pairs:
-                pairs_str = ", ".join([f"{pc.modality_a}-{pc.modality_b}" for pc in high_conflict_pairs])
-                reasoning_parts.append(f"High conflict detected in: {pairs_str}")
-            reasoning_parts.append(f"Dominant conflict type: {dominant_type.value}")
+        if coordination_detected:
+            reasoning_parts.append("COORDINATED MANIPULATION DETECTED (GPT-5.1 High Precision)")
         
-        if manipulation_risk > 0.5:
-            reasoning_parts.append(f"Elevated manipulation risk ({manipulation_risk:.0%})")
+        if dominant_type == ConflictType.NONE:
+            reasoning_parts.append(f"Modalities aligned ({len(modalities)})")
+        else:
+            reasoning_parts.append(f"Dominant conflict: {dominant_type.value}")
+            
+        if credibility < 0.4:
+            reasoning_parts.append(f"Low author credibility ({credibility:.2f})")
+            
+        if intent_data and intent_data.get("intent"):
+            reasoning_parts.append(f"Intent: {intent_data['intent']}")
         
         return CrossModalConflictReport(
             overall_alignment=round(overall_alignment, 3),

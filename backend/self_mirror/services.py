@@ -1,13 +1,15 @@
 """
 SelfMirror Services — the 'limbs' of the autonomous agent.
 Provides safe file I/O and sandboxed command execution.
+Now with Containerization support (Priority 1).
 """
 
 import os
 import shlex
 import subprocess
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pathlib import Path
+from abc import ABC, abstractmethod
 
 # Note: 'resource' is Unix-only.
 try:
@@ -16,6 +18,7 @@ except ImportError:
     resource = None
 
 from .security import validate_command
+from .secrets_manager import SecretManager
 
 class FileService:
     """Safe read/write operations for the agent."""
@@ -91,65 +94,104 @@ class FileService:
         return sorted(files)
 
 
-class ExecutionService:
-    """Sandboxed command execution with allowlist enforcement and resource limits."""
+class ExecutionService(ABC):
+    """Abstract base class for command execution."""
+    @abstractmethod
+    def run_command(self, command: str) -> Dict[str, Any]:
+        pass
+
+
+class HostExecutionService(ExecutionService):
+    """Host-level command execution with resource limits and allowlist."""
 
     def __init__(self, cwd: str, timeout: int = 120):
         self.cwd = cwd
         self.timeout = timeout
-        # Limits: 4GB memory, 60s CPU (per process)
         self.mem_limit = 4 * 1024 * 1024 * 1024
         self.cpu_limit = 60
 
     def _set_resource_limits(self):
-        """Pre-execution function to set resource limits for the sub-process."""
         if resource:
             try:
-                # CPU time limit (seconds)
                 resource.setrlimit(resource.RLIMIT_CPU, (self.cpu_limit, self.cpu_limit + 5))
-                # Address space limit (bytes)
-                # Some OSs (like macOS) have strict limits on RLIMIT_AS, we try but don't crash if it fails
                 resource.setrlimit(resource.RLIMIT_AS, (self.mem_limit, self.mem_limit))
-                # Memory limit (bytes)
                 resource.setrlimit(resource.RLIMIT_RSS, (self.mem_limit, self.mem_limit))
             except Exception:
                 pass 
 
-    def run_command(self, command: str) -> dict:
-        """Execute a command after validating against the allowlist and setting resource limits."""
-        # 1. Validate before executing
+    def run_command(self, command: str) -> Dict[str, Any]:
         check = validate_command(command)
         if not check["allowed"]:
-            return {
-                "success": False,
-                "stdout": "",
-                "stderr": f"BLOCKED: {check['reason']}",
-                "exit_code": -1,
-            }
+            return {"success": False, "stdout": "", "stderr": f"BLOCKED: {check['reason']}", "exit_code": -1}
 
-        # 2. Execute using shlex split (no shell=True)
         try:
             args = shlex.split(command)
+            safe_env = SecretManager.get_safe_env()
             result = subprocess.run(
-                args,
-                cwd=self.cwd,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout,
-                preexec_fn=self._set_resource_limits,
+                args, cwd=self.cwd, capture_output=True, text=True,
+                timeout=self.timeout, preexec_fn=self._set_resource_limits, env=safe_env,
             )
             return {
                 "success": result.returncode == 0,
-                "stdout": result.stdout[-5000:],  # cap output size
+                "stdout": result.stdout[-5000:],
                 "stderr": result.stderr[-2000:],
                 "exit_code": result.returncode,
             }
         except subprocess.TimeoutExpired:
-            return {
-                "success": False,
-                "stdout": "",
-                "stderr": f"Command timed out ({self.timeout}s limit).",
-                "exit_code": -1,
-            }
+            return {"success": False, "stdout": "", "stderr": f"Command timed out ({self.timeout}s limit).", "exit_code": -1}
         except Exception as e:
             return {"success": False, "stdout": "", "stderr": str(e), "exit_code": -1}
+
+
+class ContainerExecutionService(ExecutionService):
+    """Docker-based command execution for maximum isolation."""
+
+    def __init__(self, cwd: str, image: str = "python:3.11-slim", timeout: int = 120):
+        self.cwd = cwd
+        self.image = image
+        self.timeout = timeout
+
+    def run_command(self, command: str) -> Dict[str, Any]:
+        """Runs the command inside an ephemeral Docker container."""
+        check = validate_command(command)
+        if not check["allowed"]:
+            return {"success": False, "stdout": "", "stderr": f"BLOCKED: {check['reason']}", "exit_code": -1}
+
+        # Construct Docker command
+        # Mounting the workspace as a volume
+        abs_cwd = os.path.abspath(self.cwd)
+        docker_cmd = [
+            "docker", "run", "--rm",
+            "-v", f"{abs_cwd}:/workspace",
+            "-w", "/workspace",
+            "--network", "none", # Total network isolation
+            "--memory", "4g",
+            "--cpus", "1.0",
+            self.image,
+            "sh", "-c", command
+        ]
+
+        try:
+            # Note: We still use safe_env but Docker is the primary barrier
+            safe_env = SecretManager.get_safe_env()
+            result = subprocess.run(
+                docker_cmd, capture_output=True, text=True, timeout=self.timeout, env=safe_env
+            )
+            return {
+                "success": result.returncode == 0,
+                "stdout": result.stdout[-5000:],
+                "stderr": result.stderr[-2000:],
+                "exit_code": result.returncode,
+            }
+        except subprocess.TimeoutExpired:
+            return {"success": False, "stdout": "", "stderr": "Docker command timed out.", "exit_code": -1}
+        except Exception as e:
+            return {"success": False, "stdout": "", "stderr": f"Docker error: {str(e)}", "exit_code": -1}
+
+
+def get_execution_service(cwd: str, timeout: int = 120) -> ExecutionService:
+    """Factory to return the appropriate execution service."""
+    mode = os.getenv("SELFMIRROR_EXECUTION_MODE", "host").lower()
+    if mode == "docker":
+        return ContainerExecutionService(cwd=cwd, timeout=timeout)
+    return HostExecutionService(cwd=cwd, timeout=timeout)

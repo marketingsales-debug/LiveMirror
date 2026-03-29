@@ -63,3 +63,16 @@ async def run_command(command: str, _auth: str = Depends(require_auth)):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/status")
+async def get_system_status(_auth: str = Depends(require_auth)):
+    """Returns the current security and execution status."""
+    from .security import BLOCKED_PATTERNS
+    mode = os.getenv("SELFMIRROR_EXECUTION_MODE", "host").lower()
+    return {
+        "execution_mode": mode,
+        "security_blocks_active": len(BLOCKED_PATTERNS),
+        "sandboxing": "Docker" if mode == "docker" else "OS-Level",
+        "secrets_filtering": "Active",
+    }

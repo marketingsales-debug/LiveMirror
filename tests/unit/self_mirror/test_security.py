@@ -24,8 +24,8 @@ class TestValidateCommand:
         "npm run test",
         "npm run lint",
         "npm run build",
-        "npx vitest run",
-        "npx tsc --noEmit",
+        "npx vitest",
+        "npx tsc",
         "ruff check src/",
         "ruff format --check .",
         "mypy backend/",
@@ -115,6 +115,7 @@ class TestValidateCommand:
         "python --version", # Not in allowed modules
         "npm install",
         "npm run start", # Only test/lint/build allowed
+        "npx install malware",
         "uv run pip install malware",
         "git config --global user.name 'Attacker'",
         "git checkout .",

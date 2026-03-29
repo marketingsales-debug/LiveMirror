@@ -5,7 +5,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from backend.self_mirror.services import FileService, ExecutionService
+from backend.self_mirror.services import FileService, HostExecutionService, get_execution_service
 
 
 # ── FileService ─────────────────────────────────────────────────────
@@ -146,7 +146,11 @@ class TestExecutionService:
 
     @pytest.fixture
     def es(self, tmp_path):
-        return ExecutionService(str(tmp_path))
+        return HostExecutionService(str(tmp_path))
+
+    def test_factory_returns_host_by_default(self, tmp_path):
+        es = get_execution_service(str(tmp_path))
+        assert isinstance(es, HostExecutionService)
 
     def test_allowed_command_runs(self, es):
         result = es.run_command("echo hello")
@@ -166,7 +170,7 @@ class TestExecutionService:
         assert "BLOCKED" in result["stderr"]
 
     def test_command_timeout(self, tmp_path):
-        es = ExecutionService(str(tmp_path), timeout=1)
+        es = HostExecutionService(str(tmp_path), timeout=1)
         # 'find /' is allowed and will run long enough to timeout
         result = es.run_command("find / -name '*.py'")
         # Should either timeout or complete — either way, no crash
@@ -182,6 +186,6 @@ class TestExecutionService:
         assert len(result["stdout"]) <= 5001
 
     def test_failed_command_returns_nonzero(self, es):
-        result = es.run_command("python -c 'raise ValueError(\"boom\")'")
+        result = es.run_command("python -m pytest non_existent_file.py")
         assert result["success"] is False
         assert result["exit_code"] != 0

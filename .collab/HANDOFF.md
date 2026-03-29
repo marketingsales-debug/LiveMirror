@@ -2,6 +2,33 @@
 
 ## Latest Handoff
 
+### 2026-03-30 — Claude (Fine-Tuning Loop) — Model: Claude Opus 4.5
+
+**What was done:**
+- Created `src/learning/fine_tune.py`: Complete fine-tuning loop for continuous model improvement
+- Key components:
+  - `FineTuneConfig`: Configurable learning rate, sample thresholds, early stopping patience
+  - `FineTuneResult`: Per-run metrics (pre/post accuracy, improvement, epochs, loss history)
+  - `FineTuningLoop`: Main orchestrator with `add_validated_sample()`, `should_fine_tune()`, `fine_tune()`, `maybe_fine_tune()`
+- Features:
+  - Automatic threshold checking (min samples, time interval, accuracy)
+  - Train/validation split with early stopping
+  - Weight save/restore for rollback on degradation
+  - Direction-to-target embedding conversion (bullish/bearish/neutral)
+  - Export history and human-readable summary
+- 38 unit tests in `tests/learning/test_fine_tune.py` → **all passed**
+
+**Why:** Stream B Week 3 deliverable—enable continuous learning from validated predictions. Uses backtesting metrics to improve fusion attention weights.
+
+**What to do next:**
+1. Wire `FineTuningLoop` to `LearningLoop` for automatic triggering on validation
+2. Connect to `BacktestHarness` for regression testing after fine-tunes
+3. Run code quality checks, stress tests, and security audit
+
+**Blockers:** None.
+
+---
+
 ### 2026-03-30 — Claude (Backtesting Harness) — Model: Claude Opus 4.5
 
 **What was done:**

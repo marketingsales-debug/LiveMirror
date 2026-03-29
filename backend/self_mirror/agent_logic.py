@@ -8,7 +8,7 @@ import json
 import re
 import httpx
 from typing import List, Dict, Any, Optional
-from .services import FileService, ExecutionService
+from .services import FileService, get_execution_service
 
 
 # SSE Emitters (lazy import to avoid circular deps)
@@ -66,9 +66,10 @@ ACTION: {"type": "COMPLETE"}
 - ALWAYS verify with tests after writing
 - The system auto-rolls back if VERIFY fails
 - Commands are validated against an allowlist — only test/lint/git-read commands work
+- Your environment may be a container; networking is DISABLED for security.
 
 ## Allowed Commands
-pytest, python -m pytest, npm test, npm run lint, npm run build, ruff check, git status, git diff, git log, ls, cat, head, grep, find
+pytest, python -m pytest, npm test, npm run lint, npm run build, npx tsc, npx vitest, ruff check, git status, git diff, git log, ls, cat, head, grep, find
 """
 
 
@@ -157,7 +158,7 @@ class AgentLoop:
 
     def __init__(self, workspace_root: str):
         self.files = FileService(workspace_root)
-        self.exec = ExecutionService(workspace_root)
+        self.exec = get_execution_service(workspace_root)
         self.llm = LLMClient()
 
     async def run_goal(

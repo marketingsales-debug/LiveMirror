@@ -49,6 +49,14 @@ def validate_npm(args: List[str]) -> bool:
         return len(args) >= 3 and args[2] in ["test", "lint", "build"]
     return subcommand in ["test", "test:unit", "test:e2e"]
 
+def validate_npx(args: List[str]) -> bool:
+    """Only allow safe npx subcommands."""
+    if len(args) < 2:
+        return False
+    subcommand = args[1]
+    allowed_npx = ["tsc", "vitest", "ruff", "mypy"]
+    return subcommand in allowed_npx
+
 def validate_uv(args: List[str]) -> bool:
     """Only allow uv run python -m pytest or uv run ruff."""
     if len(args) < 2:
@@ -73,7 +81,7 @@ ALLOWED_COMMANDS: Dict[str, Optional[Callable[[List[str]], bool]]] = {
     "python3": validate_python_m,
     "uv": validate_uv,
     "npm": validate_npm,
-    "npx": None,  # npx vitest, npx tsc etc.
+    "npx": validate_npx,
     "ruff": None,
     "mypy": None,
     "git": validate_git,
