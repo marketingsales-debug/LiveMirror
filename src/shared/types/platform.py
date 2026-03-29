@@ -42,12 +42,21 @@ class RawSignal:
     platform: Platform
     signal_type: SignalType
     content: str
+    id: Optional[str] = None  # Unique identifier for the signal
     author: Optional[str] = None
     url: Optional[str] = None
     timestamp: Optional[datetime] = None
     engagement: Dict[str, int] = field(default_factory=dict)  # likes, shares, comments
     metadata: Dict[str, Any] = field(default_factory=dict)
     raw_data: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self):
+        """Generate ID if not provided."""
+        if self.id is None:
+            import hashlib
+            content_hash = hashlib.md5(self.content[:100].encode()).hexdigest()[:8]
+            platform_prefix = self.platform.value[:3]
+            self.id = f"{platform_prefix}_{content_hash}"
 
     def engagement_score(self) -> float:
         """Composite engagement score."""

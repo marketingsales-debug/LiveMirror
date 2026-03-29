@@ -132,7 +132,8 @@ class TestAgentLoop:
 
     @pytest.mark.asyncio
     async def test_complete_action_stops_loop(self, loop):
-        loop.llm = AsyncMock()
+        # Use MagicMock for the client but AsyncMock for the chat coroutine
+        loop.llm = MagicMock()
         loop.llm.is_configured.return_value = True
         loop.llm.chat = AsyncMock(
             return_value='THOUGHT: Done.\nACTION: {"type": "COMPLETE"}'
@@ -143,7 +144,7 @@ class TestAgentLoop:
     @pytest.mark.asyncio
     async def test_read_file_action(self, loop, tmp_path):
         (tmp_path / "readme.md").write_text("# Hello")
-        loop.llm = AsyncMock()
+        loop.llm = MagicMock()
         loop.llm.is_configured.return_value = True
         loop.llm.chat = AsyncMock(
             side_effect=[
@@ -156,7 +157,7 @@ class TestAgentLoop:
 
     @pytest.mark.asyncio
     async def test_parse_failure_reprompts(self, loop):
-        loop.llm = AsyncMock()
+        loop.llm = MagicMock()
         loop.llm.is_configured.return_value = True
         loop.llm.chat = AsyncMock(
             side_effect=[
@@ -171,7 +172,7 @@ class TestAgentLoop:
 
     @pytest.mark.asyncio
     async def test_max_iterations_capped_at_20(self, loop):
-        loop.llm = AsyncMock()
+        loop.llm = MagicMock()
         loop.llm.is_configured.return_value = True
         # Request 50, should be capped to 20
         loop.llm.chat = AsyncMock(
@@ -183,7 +184,7 @@ class TestAgentLoop:
 
     @pytest.mark.asyncio
     async def test_unknown_action_type_handled(self, loop):
-        loop.llm = AsyncMock()
+        loop.llm = MagicMock()
         loop.llm.is_configured.return_value = True
         loop.llm.chat = AsyncMock(
             side_effect=[
@@ -196,7 +197,7 @@ class TestAgentLoop:
 
     @pytest.mark.asyncio
     async def test_llm_error_stops_loop(self, loop):
-        loop.llm = AsyncMock()
+        loop.llm = MagicMock()
         loop.llm.is_configured.return_value = True
         loop.llm.chat = AsyncMock(return_value="Error: Connection refused")
         result = await loop.run_goal("test")

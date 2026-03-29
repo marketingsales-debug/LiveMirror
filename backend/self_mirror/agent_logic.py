@@ -12,7 +12,7 @@ from .services import FileService, get_execution_service
 
 
 # SSE Emitters (lazy import to avoid circular deps)
-async def _emit_thought(message: str, step: str = "thinking"):
+async def _emit_thought(message: str, step: str = "thinking") -> None:
     try:
         from backend.app.api.stream import emit_agent_thought
         await emit_agent_thought(message, step)
@@ -20,7 +20,7 @@ async def _emit_thought(message: str, step: str = "thinking"):
         pass
 
 
-async def _emit_action(action_type: str, details: Dict[str, Any]):
+async def _emit_action(action_type: str, details: Dict[str, Any]) -> None:
     try:
         from backend.app.api.stream import emit_agent_action
         await emit_agent_action(action_type, details)

@@ -151,6 +151,17 @@ class ContainerExecutionService(ExecutionService):
         self.image = image
         self.timeout = timeout
 
+    def check_availability(self) -> bool:
+        """Verify Docker is running and the image is available."""
+        try:
+            # Check if docker daemon is running
+            subprocess.run(["docker", "info"], capture_output=True, check=True, timeout=5)
+            # Check if image exists (pull if not)
+            subprocess.run(["docker", "pull", self.image], capture_output=True, check=True, timeout=60)
+            return True
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+            return False
+
     def run_command(self, command: str) -> Dict[str, Any]:
         """Runs the command inside an ephemeral Docker container."""
         check = validate_command(command)
@@ -193,5 +204,9 @@ def get_execution_service(cwd: str, timeout: int = 120) -> ExecutionService:
     """Factory to return the appropriate execution service."""
     mode = os.getenv("SELFMIRROR_EXECUTION_MODE", "host").lower()
     if mode == "docker":
-        return ContainerExecutionService(cwd=cwd, timeout=timeout)
+        svc = ContainerExecutionService(cwd=cwd, timeout=timeout)
+        if svc.check_availability():
+            return svc
+        # Fallback to host if docker is not healthy/installed
+        return HostExecutionService(cwd=cwd, timeout=timeout)
     return HostExecutionService(cwd=cwd, timeout=timeout)

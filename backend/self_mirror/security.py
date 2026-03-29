@@ -6,7 +6,7 @@ Command allowlist, API key auth, and input sanitization.
 import os
 import re
 import shlex
-from typing import Optional, List, Dict, Callable
+from typing import Optional, List, Dict, Callable, Any
 from fastapi import HTTPException, Header
 
 
@@ -143,7 +143,7 @@ def validate_command_tokens(tokens: List[str]) -> bool:
     
     return True
 
-def validate_command(command: str) -> dict:
+def validate_command(command: str) -> Dict[str, Any]:
     """
     Check if a command is safe to execute using tokenization.
     """

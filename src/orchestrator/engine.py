@@ -12,6 +12,7 @@ Each stage feeds the next, with SSE events emitted throughout.
 import asyncio
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+import numpy as np
 
 from ..shared.types import Platform, Prediction
 from ..pipeline.orchestrator import LiveMirrorPipeline
@@ -242,11 +243,19 @@ class LiveMirrorEngine:
         if signals and self.pipeline.fusion.config.use_learned_attention:
             # Simple heuristic: target is a bullish (+1) or bearish (-1) vector
             # based on the validated accuracy and direction.
-            # (In a real scenario, this would be a high-dim embedding of the outcome)
             direction_vec = np.ones(384, dtype=np.float32) if accuracy > 0.5 else np.zeros(384, dtype=np.float32)
-            inputs = [{"text": s.signal.content} for s in signals[:10]]
-            targets = [direction_vec for _ in range(len(inputs))]
-            self.pipeline.fusion.fine_tune_attention(inputs, targets)
+            
+            # Encode signals to embeddings first
+            encoded_inputs = []
+            for s in signals[:10]:
+                modality_emb = self.pipeline.fusion.text_encoder.encode(s.signal.content)
+                if modality_emb is not None:
+                    # Extract raw embedding from ModalityEmbedding object
+                    encoded_inputs.append({"text": modality_emb.embedding})
+            
+            if encoded_inputs:
+                targets = [direction_vec for _ in range(len(encoded_inputs))]
+                self.pipeline.fusion.fine_tune_attention(encoded_inputs, targets)
 
         return self.learning.validate_and_calibrate(
             prediction_id=prediction_id,
