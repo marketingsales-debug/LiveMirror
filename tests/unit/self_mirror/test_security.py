@@ -110,6 +110,21 @@ class TestValidateCommand:
         result = validate_command("git push origin main")
         assert result["allowed"] is False
 
+    @pytest.mark.parametrize("cmd", [
+        "python -c 'import os; os.system(\"rm -rf /\")'",
+        "python --version", # Not in allowed modules
+        "npm install",
+        "npm run start", # Only test/lint/build allowed
+        "uv run pip install malware",
+        "git push origin main",
+        "ls /etc/passwd && rm -rf /",
+    ])
+    def test_adversarial_subcommands(self, cmd):
+        """Test that adversarial/unlisted subcommands are blocked."""
+        result = validate_command(cmd)
+        assert result["allowed"] is False
+        assert ("allowlist" in result["reason"] or "Blocked pattern" in result["reason"])
+
 
 # ── require_auth ────────────────────────────────────────────────────
 

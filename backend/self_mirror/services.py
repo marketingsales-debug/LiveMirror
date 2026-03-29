@@ -9,6 +9,12 @@ import subprocess
 from typing import List, Optional
 from pathlib import Path
 
+# Note: 'resource' is Unix-only.
+try:
+    import resource
+except ImportError:
+    resource = None
+
 from .security import validate_command
 
 class FileService:
@@ -81,14 +87,31 @@ class FileService:
 
 
 class ExecutionService:
-    """Sandboxed command execution with allowlist enforcement."""
+    """Sandboxed command execution with allowlist enforcement and resource limits."""
 
     def __init__(self, cwd: str, timeout: int = 120):
         self.cwd = cwd
         self.timeout = timeout
+        # Limits: 4GB memory, 60s CPU (per process)
+        self.mem_limit = 4 * 1024 * 1024 * 1024
+        self.cpu_limit = 60
+
+    def _set_resource_limits(self):
+        """Pre-execution function to set resource limits for the sub-process."""
+        if resource:
+            try:
+                # CPU time limit (seconds)
+                resource.setrlimit(resource.RLIMIT_CPU, (self.cpu_limit, self.cpu_limit + 5))
+                # Address space limit (bytes)
+                # Some OSs (like macOS) have strict limits on RLIMIT_AS, we try but don't crash if it fails
+                resource.setrlimit(resource.RLIMIT_AS, (self.mem_limit, self.mem_limit))
+                # Memory limit (bytes)
+                resource.setrlimit(resource.RLIMIT_RSS, (self.mem_limit, self.mem_limit))
+            except Exception:
+                pass 
 
     def run_command(self, command: str) -> dict:
-        """Execute a command after validating against the allowlist."""
+        """Execute a command after validating against the allowlist and setting resource limits."""
         # 1. Validate before executing
         check = validate_command(command)
         if not check["allowed"]:
@@ -108,6 +131,7 @@ class ExecutionService:
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
+                preexec_fn=self._set_resource_limits,
             )
             return {
                 "success": result.returncode == 0,

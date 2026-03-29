@@ -10,8 +10,8 @@
 - **Hardening Command Allowlist**: Removed `python -c` from `ALLOWED_COMMAND_PREFIXES` to prevent arbitrary Python execution.
 - **Strict Command Validation (Issue #2)**: Refactored `validate_command` to use `shlex` tokenization and per-command argument validators. Specific logic added for `python -m`, `uv run`, and `npm` to prevent sub-command exploits.
 - **Concurrency & State Management (Issue #3)**: Refactored `main.py` to instantiate a fresh `AgentLoop` per request. Removed the global singleton to ensure session isolation and thread-safety in the IDE.
-- **Resource Limits (Issue #4)**: Initiated implementation of OS-level resource limits (CPU, Memory) for sub-processes in `services.py` to prevent resource exhaustion attacks.
-- **Verification**: Total 115 unit tests passing.
+- **Resource Limits (Issue #4)**: Implemented OS-level resource limits for sub-processes in `services.py`. Added 4GB memory and 60s CPU caps using `resource.setrlimit` and `preexec_fn` to prevent resource exhaustion.
+- **Verification**: Expanded `test_security.py` with 7 adversarial sub-command tests. All 122 unit tests for SelfMirror passing.
 
 **What Claude should do next:**
 1. **Further Sandbox Hardening**: Consider moving command execution to a Docker container or a restricted sub-process environment.
