@@ -51,7 +51,6 @@ ALLOWED_COMMAND_PREFIXES = [
     "git show",
     "git branch",
     # Python
-    "python -c",
     "python -m",
     "uv run",
     # Info commands
