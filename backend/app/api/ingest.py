@@ -28,6 +28,7 @@ from src.ingestion.platforms.bluesky import BlueskyIngester
 from src.ingestion.platforms.news import NewsIngester
 from src.ingestion.platforms.tiktok import TikTokIngester
 from src.ingestion.platforms.instagram import InstagramIngester
+from src.ingestion.platforms.moltbook import MoltbookIngester
 from src.shared.types import Platform
 from .metrics import record_cache_stats
 
@@ -59,6 +60,7 @@ def _get_pipeline() -> LiveMirrorPipeline:
         _pipeline.register_ingester(NewsIngester())
         _pipeline.register_ingester(TikTokIngester())
         _pipeline.register_ingester(InstagramIngester())
+        _pipeline.register_ingester(MoltbookIngester())
     return _pipeline
 
 

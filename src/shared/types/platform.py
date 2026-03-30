@@ -21,6 +21,7 @@ class Platform(str, Enum):
     POLYMARKET = "polymarket"
     WEB = "web"
     NEWS = "news"
+    MOLTBOOK = "moltbook"  # AI agent social network
 
 
 class SignalType(str, Enum):
