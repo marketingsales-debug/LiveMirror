@@ -1,6 +1,6 @@
 """
 SelfMirror API — Finalized v2.0 Interface.
-Wires the frontend to the LangGraph Research Board.
+Wires the frontend to the LangGraph Research Board and Secret Manager.
 """
 
 import os
@@ -27,6 +27,10 @@ class GoalResponse(BaseModel):
     thoughts: List[str]
     status: str
 
+class SecretRequest(BaseModel):
+    name: str
+    value: str
+
 
 @router.post("/goal", response_model=GoalResponse)
 async def start_goal(request: GoalRequest, _auth: str = Depends(require_auth)):
@@ -48,7 +52,6 @@ async def start_goal(request: GoalRequest, _auth: str = Depends(require_auth)):
 
     try:
         # Run the graph
-        # Using thread_id for state persistence (LangGraph Pattern)
         config = {"configurable": {"thread_id": "session_1"}}
         result = await research_board.ainvoke(initial_state, config=config)
         
@@ -63,9 +66,7 @@ async def start_goal(request: GoalRequest, _auth: str = Depends(require_auth)):
 @router.get("/files")
 async def list_workspace_files(_auth: str = Depends(require_auth)):
     """Returns all files the agent can see (auth required)."""
-    from src.memory.lesson_learnt import LessonLearntStore
-    # We use the LessonLearntStore to list files for now as a proxy
-    # In full implementation, this would be a specialized file service
+    # Simple placeholder for file listing
     return {"files": ["main.py", "src/orchestrator/graph.py", "backend/app/main.py"]}
 
 
@@ -82,3 +83,26 @@ async def get_system_status(_auth: str = Depends(require_auth)):
         "orchestrator": "LangGraph v2.0",
         "reasoning": "RARE Open-Book",
     }
+
+@router.get("/secrets")
+async def list_secrets(_auth: str = Depends(require_auth)):
+    """List managed secret names (auth required)."""
+    from src.memory.lesson_learnt import LessonLearntStore
+    db = LessonLearntStore()
+    return {"secrets": db.list_secrets()}
+
+@router.post("/secrets")
+async def update_secret(request: SecretRequest, _auth: str = Depends(require_auth)):
+    """Update or create a secret key (auth required)."""
+    from src.memory.lesson_learnt import LessonLearntStore
+    db = LessonLearntStore()
+    db.set_secret(request.name, request.value)
+    return {"status": "updated", "key": request.name.upper()}
+
+@router.delete("/secrets/{key_name}")
+async def delete_secret(key_name: str, _auth: str = Depends(require_auth)):
+    """Delete a managed secret (auth required)."""
+    from src.memory.lesson_learnt import LessonLearntStore
+    db = LessonLearntStore()
+    db.delete_secret(key_name)
+    return {"status": "deleted", "key": key_name.upper()}

@@ -43,6 +43,43 @@ class LessonLearntStore:
                     source_id TEXT
                 )
             """)
+            # Dynamic Secrets Table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS secrets (
+                    key_name TEXT PRIMARY KEY,
+                    key_value TEXT,
+                    updated_at TIMESTAMP,
+                    status TEXT DEFAULT 'active'
+                )
+            """)
+            conn.commit()
+
+    def set_secret(self, name: str, value: str):
+        """Upsert a secret key."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO secrets (key_name, key_value, updated_at) VALUES (?, ?, ?)",
+                (name.upper(), value, datetime.now().isoformat())
+            )
+            conn.commit()
+
+    def get_secret(self, name: str) -> Optional[str]:
+        """Retrieve a specific secret."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT key_value FROM secrets WHERE key_name = ?", (name.upper(),))
+            row = cursor.fetchone()
+            return row[0] if row else None
+
+    def list_secrets(self) -> List[Dict[str, Any]]:
+        """List all secret names and their status (not values)."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("SELECT key_name, updated_at, status FROM secrets")
+            return [{"name": row[0], "updated_at": row[1], "status": row[2]} for row in cursor.fetchall()]
+
+    def delete_secret(self, name: str):
+        """Remove a secret."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("DELETE FROM secrets WHERE key_name = ?", (name.upper(),))
             conn.commit()
 
     def save_triple(self, subject: str, predicate: str, obj: str, confidence: float = 1.0):

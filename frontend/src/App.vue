@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DashboardView from '@livemirror/dashboard/views/DashboardView.vue'
+import DashboardView from '@/views/DashboardView.vue'
 </script>
 
 <template>

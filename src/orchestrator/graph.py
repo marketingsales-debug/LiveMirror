@@ -7,7 +7,7 @@ import operator
 import os
 from typing import Annotated, Sequence, TypedDict, Union, List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import BaseMessage, HumanMessage, AssistantMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -67,32 +67,32 @@ async def researcher_node(state: AgentState):
         
         if not v["is_valid"]:
             return {
-                "messages": [AssistantMessage(content=f"Hallucination detected in citations: {v['hallucinations']}")],
+                "messages": [AIMessage(content=f"Hallucination detected in citations: {v['hallucinations']}")],
                 "next_agent": "researcher" 
             }
 
         return {
-            "messages": [AssistantMessage(content=response.thought.logic)],
+            "messages": [AIMessage(content=response.thought.logic)],
             "findings": [response.thought.observation],
             "next_agent": response.next_step
         }
     except Exception as e:
         return {
-            "messages": [AssistantMessage(content=f"Error in researcher node: {str(e)}")],
+            "messages": [AIMessage(content=f"Error in researcher node: {str(e)}")],
             "next_agent": "end"
         }
 
 async def coder_node(state: AgentState):
     """EA Node: Implements code changes in the Research Sandbox."""
     print("--- [EA] CODING ---")
-    return {"messages": [AssistantMessage(content="Engineer proposed a patch.")], "next_agent": "analyst"}
+    return {"messages": [AIMessage(content="Engineer proposed a patch.")], "next_agent": "analyst"}
 
 async def analyst_node(state: AgentState):
     """Analyst Node: Runs backtests and verifies patches."""
     print("--- [Analyst] ANALYZING ---")
     # Simulation of analysis result
     return {
-        "messages": [AssistantMessage(content="Backtest accuracy: 94.2% (Target Achieved)")], 
+        "messages": [AIMessage(content="Backtest accuracy: 94.2% (Target Achieved)")], 
         "verification_results": {"accuracy": 0.942},
         "next_agent": "ema"
     }
@@ -123,7 +123,7 @@ async def ema_node(state: AgentState):
     )
 
     return {
-        "messages": [AssistantMessage(content="EMA updated active strategy.")], 
+        "messages": [AIMessage(content="EMA updated active strategy.")], 
         "active_strategy": strategy_update.content,
         "next_agent": "end"
     }

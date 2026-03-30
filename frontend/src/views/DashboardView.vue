@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import ContagionGraph from '@livemirror/visualization/charts/ContagionGraph.vue';
-import TrustNetworkGraph from '@livemirror/visualization/charts/TrustNetworkGraph.vue';
-import BeliefEvolutionChart from '@livemirror/visualization/charts/BeliefEvolutionChart.vue';
+import ContagionGraph from '@/visualization/charts/ContagionGraph.vue';
+import TrustNetworkGraph from '@/visualization/charts/TrustNetworkGraph.vue';
+import BeliefEvolutionChart from '@/visualization/charts/BeliefEvolutionChart.vue';
 import DebatePanel from '../components/DebatePanel.vue';
 import PlatformHealth from '../components/PlatformHealth.vue';
 import PredictionHistory from '../components/PredictionHistory.vue';
 import LearningStatsPanel from '../components/LearningStatsPanel.vue';
 import MetricsDashboard from '../components/MetricsDashboard.vue';
+import SecretsPanel from '../components/SecretsPanel.vue';
 
 // Reactive State
 const topicInput = ref('AI Regulation');
@@ -366,6 +367,9 @@ onUnmounted(() => {
         <section class="side-panel glass-panel">
           <DebatePanel :report="activePrediction" />
         </section>
+      </div>
+      <div class="history-row glass-panel">
+        <SecretsPanel />
       </div>
       <div class="history-row glass-panel">
         <PredictionHistory />
