@@ -684,7 +684,7 @@ class ABTestFramework:
     
     def setup_ab_test(self, real_users_sample, split_percent=0.10):
         """
-        Assign 10% to v2.0 (treatment)
+        Assign 20% to v2.0 (treatment)
         Keep 90% on v1.0 (control)
         Track outcomes for both
         """
@@ -772,7 +772,7 @@ class ABTestFramework:
 ```python
 # src/deployment/phased_rollout.py (NEW)
 class PhasedRolloutManager:
-    """Safe deployment: 10% → 25% → 50% → 100%"""
+    """Safe deployment: 20% → 50% → 100%"""
     
     def get_user_for_version(self, user_id, current_phase):
         """
@@ -783,7 +783,7 @@ class PhasedRolloutManager:
         
         # Phases
         if current_phase == 'phase1':
-            return 'v2.0' if hash_value < 10 else 'v1.0'  # 10%
+            return 'v2.0' if hash_value < 20 else 'v1.0'  # 20%
         elif current_phase == 'phase2':
             return 'v2.0' if hash_value < 25 else 'v1.0'  # 25%
         elif current_phase == 'phase3':
@@ -833,7 +833,7 @@ class PhasedRolloutManager:
 ```
 
 **Value added:**
-- Safe rollout: Start with 10%, expand only if metrics good
+- Safe rollout: Start with 20%, expand only if metrics good
 - Automatic rollback if things break
 - Monitoring: Error rate, latency, accuracy
 - Risk mitigation: No big-bang deployment

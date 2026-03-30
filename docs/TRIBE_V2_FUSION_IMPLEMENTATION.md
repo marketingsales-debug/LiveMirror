@@ -35,8 +35,8 @@ CP3: Video Encoder
 └── Thumbnail fallback support
 
 CP4: Cross-Modal Attention
-├── MultiHeadCrossAttention (4 heads, simplified)
-├── 2-layer Transformer
+├── CrossModalTransformer (4 heads, 2 layers) fallback
+├── LearnedCrossModalAttention (8 heads, 3 layers) default
 └── Unified 384-dim representation
 
 CP5: Temporal Modeling + Context
@@ -117,10 +117,9 @@ Total: 27 files, 1,728 lines of code + 548 lines of tests
 - **Graceful degradation**: Each encoder available() independently; missing deps return None
 
 ### 2. Cross-Modal Fusion (CP4)
-- Simplified multi-head attention mechanism
-- 4 attention heads, 2 transformer layers
-- Dot-product attention with softmax normalization
-- No learned parameters (simplified for fast inference)
+- Learned multi-head attention (8 heads, 3 layers) by default
+- Fixed 4-head, 2-layer attention fallback when learned attention disabled
+- Dot-product attention in fallback path; learned weights in PyTorch path
 
 ### 3. Temporal Dynamics (CP5)
 - **Sinusoidal positional encoding**: Time-aware embeddings
@@ -263,7 +262,7 @@ Optional (graceful fallback):
 
 ## Future Enhancements
 
-1. **Learned attention weights** (replace simplified dot-product)
+1. **Fine-tune learned attention weights** on historical data
 2. **Audio: advanced prosody** (F0 extraction, speech rate from DTW)
 3. **Video: temporal modeling** (optical flow, scene changes)
 4. **Audience: dynamic segments** (learned from engagement patterns)
@@ -279,7 +278,7 @@ Implement complete multimodal fusion layer with 8 checkpoints:
 - CP1: Types + TextEncoder (384-dim embeddings)
 - CP2: AudioEncoder (Whisper + librosa)
 - CP3: VideoEncoder (CLIP ViT-B/32)
-- CP4: CrossModalAttention (2-layer Transformer)
+- CP4: CrossModalAttention (fallback 2-layer) + LearnedCrossModalAttention (3-layer, 8-head)
 - CP5: TemporalTransformer (velocity, acceleration, momentum)
 - CP6: AudienceSegments (4 default segments, platform-weighted)
 - CP7: NoiseDetector (sarcasm, spam, bot immunity)

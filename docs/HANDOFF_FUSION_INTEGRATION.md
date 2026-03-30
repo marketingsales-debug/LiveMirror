@@ -139,9 +139,10 @@ config = FusionConfig(
     embedding_dim=384,          # Keep fixed (all encoders output 384)
     
     # Attention configuration
-    num_attention_heads=4,      # Heads in cross-modal attention
-    attention_layers=2,         # Depth of transformer
+    num_attention_heads=4,      # Fixed attention fallback
+    attention_layers=2,         # Fixed transformer depth
     attention_hidden_dim=512,   # Hidden layer size (not critical)
+    use_learned_attention=True, # Default: 3-layer, 8-head learned attention
     
     # Temporal modeling
     context_window_size=50,     # Number of signals to track
@@ -163,8 +164,8 @@ config = FusionConfig(
 | Parameter | Increase for | Decrease for |
 |-----------|-------------|-------------|
 | `context_window_size` | Longer trends (1h+) | Real-time, low latency |
-| `num_attention_heads` | More modalities (4+) | Fewer resources |
-| `attention_layers` | Complex fusion | Speed (latency critical) |
+| `num_attention_heads` | More modalities (fixed attention only) | Fewer resources |
+| `attention_layers` | Complex fusion (fixed attention only) | Speed (latency critical) |
 | `enable_audio/video` | Rich signals | CPU/GPU constraints |
 
 ---
@@ -399,8 +400,8 @@ if divergence > 0.3:
 
 ### Phase 3: Gradual Rollout (Week 3-4)
 ```python
-# 10% traffic to fusion
-if random() < 0.1:
+# 20% traffic to fusion
+if random() < 0.2:
     return fusion_prediction
 else:
     return existing_prediction
@@ -520,4 +521,3 @@ SARCASM_CONFIDENCE_THRESHOLD = 0.5  # Increase to 0.7
 - Tuning: See section 3 (Configuration)
 - Performance: See section 5 (Benchmarks)
 - Issues: See section 10 (Troubleshooting)
-

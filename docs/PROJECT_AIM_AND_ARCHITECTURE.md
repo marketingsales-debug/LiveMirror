@@ -1,6 +1,6 @@
 # LiveMirror: Project Aim & Architecture
 
-**Last Updated:** March 29, 2026  
+**Last Updated:** March 30, 2026  
 **Status:** Implementation Complete + TRIBE v2 Fusion Integrated  
 **Owner:** marketingsales-debug
 
@@ -40,7 +40,7 @@
    ├─ Text Encoder → 384-dim embeddings (Sentence-Transformers)
    ├─ Audio Encoder → Whisper transcription + Librosa prosody
    ├─ Video Encoder → CLIP ViT-B/32 frame embeddings
-   ├─ Cross-Modal Attention → 2-layer Transformer fusion
+   ├─ Cross-Modal Attention → Learned 3-layer, 8-head fusion (fallback 2-layer/4-head)
    ├─ Temporal Transformer → Velocity, acceleration, momentum
    ├─ Noise Detector → Sarcasm, spam, bot detection
    └─ Context Manager → 50-state bounded window
@@ -131,7 +131,7 @@ Signal → {Text, Audio, Video} Extraction
 [AudioEncoder] → Whisper + prosody features
 [VideoEncoder] → CLIP frame features
        ↓
-[CrossModalAttention] → Fuse across modalities (multi-head, 2-layer)
+[LearnedCrossModalAttention] → Fuse across modalities (3-layer, 8-head; fallback 2-layer/4-head)
        ↓
 [TemporalTransformer] → Compute velocity, acceleration, momentum
        ↓
@@ -248,11 +248,12 @@ LiveMirror/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── ingest.py       → /ingest/start, /ingest/status
-│   │   │   ├── predict.py      → /predict/start, /predict/status, /predict/stream
-│   │   │   ├── simulate.py     → /simulate/run
-│   │   │   ├── stream.py       → /stream/predictions, /stream/ingest
-│   │   │   └── health.py       → /health
+│   │   │   ├── ingest.py       → /api/ingest/start, /api/ingest/status, /api/ingest/health
+│   │   │   ├── predict.py      → /api/predict/start, /api/predict/status, /api/predict/stream
+│   │   │   ├── simulate.py     → /api/simulate/start, /api/simulate/status
+│   │   │   ├── stream.py       → /api/stream/events
+│   │   │   ├── metrics.py      → /api/metrics/overview
+│   │   │   └── health.py       → /api/health, /api/health/detailed
 │   │   └── main.py             → FastAPI app
 │   └── pyproject.toml
 │
@@ -288,21 +289,21 @@ LiveMirror/
 
 ### Ingestion API
 ```bash
-POST /ingest/start
+POST /api/ingest/start
   body: {"topic": "Bitcoin", "platforms": ["twitter", "reddit"], "max_results_per_platform": 50}
   response: {"job_id": "ingest_...", "status": "running"}
 
-GET /ingest/status/{job_id}
+GET /api/ingest/status/{job_id}
   response: {"status": "complete", "signal_count": 234, "platforms_completed": [...]}
 ```
 
 ### Prediction API
 ```bash
-POST /predict/start
+POST /api/predict/start
   body: {"topic": "Bitcoin", "agent_count": 50, "simulation_rounds": 72}
   response: {"prediction_id": "pred_...", "status": "running"}
 
-GET /predict/status/{prediction_id}
+GET /api/predict/status/{prediction_id}
   response: {
     "status": "complete",
     "prediction": {
@@ -318,13 +319,13 @@ GET /predict/status/{prediction_id}
     }
   }
 
-GET /predict/stream/{prediction_id}
+GET /api/predict/stream/{prediction_id}
   response: Server-Sent Events stream (real-time updates)
 ```
 
 ### Simulation API
 ```bash
-POST /simulate/run
+POST /api/simulate/start
   body: {"topic": "Bitcoin", "agent_count": 50, "rounds": 72}
   response: {"simulation_id": "sim_...", "initial_distribution": [...]}
 ```
@@ -332,14 +333,17 @@ POST /simulate/run
 ### Health Check
 ```bash
 GET /health
-  response: {"status": "ok", "pipeline": "ready", "redis": "connected"}
+  response: {"status": "ok"}
+
+GET /api/health
+  response: {"status": "healthy", "service": "livemirror", "version": "0.1.0"}
 ```
 
 ---
 
 ## 🧪 Testing & Verification
 
-### Unit Tests (All Passing ✅)
+### Fusion Unit Tests (All Passing ✅)
 ```bash
 pytest tests/unit/fusion/ -v
 # Results:
@@ -353,7 +357,8 @@ pytest tests/unit/fusion/ -v
 #   test_audience_heads.py     ✅ 8/8 tests pass
 #   test_fusion_pipeline.py    ✅ 6/6 tests pass
 #
-# TOTAL: 71/71 tests passing ✅
+# TOTAL: 71/71 fusion tests passing ✅
+# Repo-wide: 403 total tests passing ✅
 ```
 
 ### E2E Verification
@@ -383,11 +388,11 @@ assert result.multi_audience_prediction.mainstream > 0.7
 ```python
 FusionConfig(
     embedding_dim=384,              # Universal embedding dimension
-    temporal_window_size=50,         # Context history depth
-    attention_heads=4,               # Multi-head attention
-    attention_layers=2,              # Transformer layers
-    noise_threshold=0.3,             # Noise confidence reduction
-    audience_segments=4,             # Crypto, Mainstream, Retail, Tech
+    context_window_size=50,         # Context history depth
+    num_attention_heads=4,          # Fixed attention fallback
+    attention_layers=2,             # Fixed transformer layers
+    use_learned_attention=True,     # Default: 3-layer, 8-head learned attention
+    audience_segments=[...],        # Crypto, Mainstream, Retail, Tech
 )
 ```
 
@@ -409,23 +414,23 @@ embedding_dim = 768  # Slower, more accurate
 
 ## 📈 Roadmap: Next 3 Months
 
-### Phase 1: Integration (Week 1-2) ✅ CURRENT
+### Phase 1: Integration (Week 1-2) ✅ COMPLETE
 - [x] Implement TRIBE v2 Fusion
 - [x] Write comprehensive docs
 - [x] Push to GitHub
 - [ ] **TODO:** Integrate with orchestrator (3 days)
-- [ ] **TODO:** Run shadow mode validation (1 week)
+- [x] **DONE:** Run shadow mode validation (staging)
 
 ### Phase 2: Optimization (Week 3-4)
-- [ ] Implement embedding cache
-- [ ] Add batch processing
-- [ ] Deploy to production (shadow: 10% traffic)
+- [x] Implement embedding cache
+- [x] Add batch processing
+- [x] Enable shadow + A/B in staging (20% split)
 - [ ] Monitor accuracy, latency, errors
 
 ### Phase 3: Improvements (Week 5-8)
 - [ ] Fine-tune sarcasm detector (LLM-based)
-- [ ] Implement learned attention weights
-- [ ] Add sentiment context to accuracy
+- [x] Implement learned attention weights
+- [x] Add sentiment context to accuracy
 - [ ] Advanced manufacturing detection
 
 ### Phase 4: Scaling (Week 9-12)
@@ -440,7 +445,7 @@ embedding_dim = 768  # Slower, more accurate
 
 ### Launch Readiness (Current)
 - [x] All 8 checkpoints implemented
-- [x] Unit tests passing (71/71)
+- [x] Unit tests passing (403 total, 71 fusion)
 - [x] E2E verification complete
 - [x] Comprehensive documentation
 - [x] GitHub commits + handoff guide
@@ -452,7 +457,7 @@ embedding_dim = 768  # Slower, more accurate
 - [ ] Latency meets SLA (< 150ms p99)
 - [ ] Accuracy validated against historical benchmarks
 - [ ] Monitoring dashboards active
-- [ ] Rollout plan executed (phased: 10% → 50% → 100%)
+- [ ] Rollout plan executed (staged: shadow + 20% A/B → 50% → 100%)
 
 ### Continuous Improvement (Phase 3+)
 - [ ] 20% performance improvement achieved

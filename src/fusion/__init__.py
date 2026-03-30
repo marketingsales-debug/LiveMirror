@@ -12,8 +12,10 @@ Modules:
 - context: Temporal context window management
 - audiences: Multi-audience segment prediction
 - noise: Sarcasm, spam, bot detection
+- delta: Signal velocity and acceleration analysis
 """
 
+from .delta import DeltaAnalyzer
 from .types import (
     ModalityEmbedding,
     NarrativeStateVector,
@@ -25,6 +27,7 @@ from .types import (
 )
 
 __all__ = [
+    "DeltaAnalyzer",
     "ModalityEmbedding",
     "NarrativeStateVector",
     "TemporalState",

@@ -1,7 +1,7 @@
 # LiveMirror — Project Status
 
-## Current Phase: COMPLETE (v1)
-## Last Updated: 2026-03-28
+## Current Phase: COMPLETE (v1) + Experiments in Staging
+## Last Updated: 2026-03-30
 ## Updated By: Claude
 
 ---
@@ -17,7 +17,7 @@
 - [x] Knowledge graph (Phase 2)
 - [x] Simulation engine (Phase 3)
 - [x] Analysis layer (Phase 4)
-- [/] Dashboard (Phase 5)
+- [x] Dashboard (Phase 5)
 - [x] Learning loop (Phase 6)
 - [x] Orchestrator (Phase 7)
 - [x] Multi-agent debate system
@@ -33,4 +33,4 @@ None
 None
 
 ### Notes
-113 tests passing. All engines wired. Full predict→learn cycle operational. 10/10 platform ingesters. Redis SSE + semantic embeddings ready.
+403 tests passing. All engines wired. Full predict→learn cycle operational. 10/10 platform ingesters. Shadow + A/B 20% in staging with metrics dashboard and variant alerts.

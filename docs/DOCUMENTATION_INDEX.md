@@ -1,6 +1,6 @@
 # LiveMirror Documentation Index
 
-**Last Updated:** March 29, 2026  
+**Last Updated:** March 30, 2026  
 **GitHub:** github.com/marketingsales-debug/LiveMirror  
 **Status:** ✅ Complete, Tested, Production-Ready
 
@@ -41,7 +41,7 @@ This document provides:
 - ✅ Performance benchmarks (latency, accuracy, memory)
 - ✅ Edge cases & error handling
 - ✅ Testing strategy (unit, E2E, integration)
-- ✅ Phased rollout plan (10% → 50% → 100%)
+- ✅ Phased rollout plan (shadow + A/B 20% → 50% → 100%)
 - ✅ Monitoring & observability setup
 - ✅ Troubleshooting guide (common issues + solutions)
 - ✅ Next-developer checklist
@@ -94,7 +94,7 @@ This document provides:
 ### What's New (TRIBE v2 Fusion Integration)
 - **8 components:** Types, TextEncoder, AudioEncoder, VideoEncoder, CrossModalAttention, TemporalTransformer, NoiseDetector, FusionPipeline
 - **1,728 lines of code**
-- **548 lines of tests** (71/71 passing ✅)
+- **548 lines of fusion tests** (71/71 passing ✅) + **403 total tests passing**
 - **1,253 lines of documentation**
 - **4 GitHub commits** with full history
 
@@ -111,7 +111,7 @@ This document provides:
 ✅ All 8 checkpoints implemented  
 ✅ 100% backward compatible  
 ✅ Comprehensive documentation  
-✅ All tests passing  
+✅ All tests passing (403 total)  
 ✅ Committed to GitHub  
 ✅ Production-ready  
 
@@ -223,7 +223,7 @@ This document provides:
 → Read: `HANDOFF_FUSION_INTEGRATION.md` → "Quickstart" section
 
 ### Q: What's the rollout plan?
-**A:** Phased (10% → 50% → 100% traffic) with shadow mode validation first.
+**A:** Phased (shadow + A/B 20% → 50% → 100% traffic) with shadow mode validation first.
 → Read: `HANDOFF_FUSION_INTEGRATION.md` → "Rollout Strategy" section
 
 ### Q: What about errors / edge cases?
@@ -270,7 +270,7 @@ This document provides:
 - ✅ Integration quickstart provided
 - ✅ Performance metrics established
 - ✅ Improvement roadmap created
-- ✅ All tests passing (71/71)
+- ✅ All tests passing (403 total; 71 fusion)
 - ✅ Code committed to GitHub (5 commits)
 - ✅ Troubleshooting guide included
 - ✅ Monitoring setup documented

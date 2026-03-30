@@ -37,13 +37,15 @@ The engine is divided into 8 focused, high-ROI modules:
 - Python 3.11+
 - OpenAI API Key (for Reasoning)
 - Docker (for Hardened Execution)
+- uv (Python package manager)
 
 ### Installation
 ```bash
 git clone https://github.com/marketingsales-debug/LiveMirror.git
 cd LiveMirror
-pip install -r requirements.txt
 cp .env.example .env
+cd backend
+uv sync --all-extras
 ```
 
 ### Running the IDE

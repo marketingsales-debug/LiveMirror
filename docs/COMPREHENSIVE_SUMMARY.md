@@ -17,7 +17,7 @@
 │         ↓                                                        │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  CROSS-MODAL FUSION                                      │  │
-│  │  ├── Multi-head Attention (4 heads, 2 layers)           │  │
+│  │  ├── Learned Attention (8 heads, 3 layers; fallback 4/2) │  │
 │  │  └── Unified 384-dim Representation                      │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │         ↓                                                        │
@@ -184,8 +184,8 @@ Implementation:
 │ Batch Processing               │ +75ms savings
 │ (16-signal batches, parallel)  │ (5x speed-up)
 ├────────────────────────────────┤
-│ Single-Layer Attention         │ +4ms savings
-│ (replace 2-layer)              │
+│ Attention Tuning               │ +4ms savings
+│ (optimize learned 3-layer)     │
 └────────────────────────────────┘
 Total: 120ms → 84ms (30% faster)
 ```
@@ -369,9 +369,9 @@ Delivered:
 4. Set up monitoring dashboards
 
 ### Short-term (2-4 Weeks)
-1. Implement shadow mode (Phase 1 rollout)
+1. Shadow mode + A/B active in staging (20% split)
 2. Run A/B test (fusion vs existing)
-3. Gradually increase traffic (10% → 50% → 100%)
+3. Gradually increase traffic (20% → 50% → 100%)
 4. Monitor accuracy & latency metrics
 
 ### Medium-term (1-2 Months)

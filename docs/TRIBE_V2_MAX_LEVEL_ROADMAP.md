@@ -147,18 +147,17 @@ BEHAVIOR SEGMENTS (2):
 
 #### 1.2 Attention Mechanism Simplification
 ```python
-# Current: 2-layer, 4-head transformer
-# Max Level: 3-layer, 8-head transformer with learned weights
+# Current: 3-layer, 8-head learned transformer (default)
+# Max Level: fine-tuned learned attention + modality-specific heads
 
 # Current architecture limitation:
-- Fixed dot-product attention (not learned)
-- Only 2 layers (limited depth)
-- Can't adapt to specific domains
+- Learned attention weights available (fine-tuning pending)
+- 3 layers (improved depth)
+- Domain adaptation not yet fine-tuned
 
 # Max Level improvement:
-- Learned attention weights (fine-tuned on historical data)
-- 3 layers (better feature extraction)
-- 8 heads (more diverse attention patterns)
+- Fine-tune learned weights on historical data
+- Modality-specific heads for domain adaptation
 - Result: 86% → 88% accuracy (+2%)
 ```
 
@@ -315,7 +314,7 @@ v2.0 (Improved):
 # Method: Canary deployment
 
 # Setup (Week 10):
-- Route 10% of predictions to v2.0 (new)
+- Route 20% of predictions to v2.0 (new)
 - Route 90% to v1.0 (current)
 - Compare real-world outcomes
 
@@ -327,7 +326,7 @@ v2.0 (Improved):
 - System reliability (any crashes?)
 
 # Decision gates:
-- If v2.0 better: Scale to 25%
+- If v2.0 better: Scale to 50%
 - If v2.0 worse: Rollback to v1.0
 - If v2.0 same: Decide based on cost/benefit
 
@@ -509,7 +508,7 @@ Prediction: "Bull 94%" (overall)
 
 ✅ **Risk management:**
 - No change gets deployed without validation
-- Canary deployments (start with 10%)
+- Canary deployments (start with 20%)
 - Rollback capability (revert if problems)
 - Monitoring and alerting
 
@@ -567,13 +566,13 @@ Prediction: "Bull 94%" (overall)
 - [ ] Check for edge cases
 
 ### Week 10: A/B Testing
-- [ ] Deploy v2.0 to 10% of traffic
+- [ ] Deploy v2.0 to 20% of traffic
 - [ ] Monitor real-world performance
 - [ ] Collect user feedback
 - [ ] Measure actual outcomes
 
 ### Week 11: Scaling & Rollout
-- [ ] Scale from 10% → 25% → 50% → 100%
+- [ ] Scale from 20% → 50% → 100%
 - [ ] Monitor system stability
 - [ ] Track business metrics
 - [ ] Optimize based on feedback
@@ -667,7 +666,7 @@ Retention value: Millions
 ### 3. Risk Management
 ```
 ❌ "Ship it to all users immediately"
-✅ "Deploy to 10%, then 25%, then 50%, then 100% with rollback capability"
+✅ "Deploy to 20%, then 50%, then 100% with rollback capability"
 ```
 
 ### 4. Real-World Testing
