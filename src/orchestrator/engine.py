@@ -26,6 +26,9 @@ from ..ingestion.platforms.hackernews import HackerNewsIngester
 from ..ingestion.platforms.polymarket import PolymarketIngester
 from ..ingestion.platforms.web_search import WebSearchIngester
 from ..orchestrator.graph import research_board, AgentState
+from ..reasoning.rare import RAREReasoning, Z1Thinking
+from ..routing.router import ModelRouter
+from ..streaming.redis_bus import RedisEventBus
 
 
 class LiveMirrorEngine:
@@ -54,6 +57,13 @@ class LiveMirrorEngine:
 
         # Learning
         self.learning = LearningLoop(calibrator=self.calibrator)
+
+        # Model routing
+        self.router = ModelRouter()
+
+        # Event bus (Redis with in-memory fallback)
+        self.event_bus = RedisEventBus()
+        self._event_bus_connected = False
 
         # History
         self._predictions: Dict[str, Dict[str, Any]] = {}
@@ -99,6 +109,10 @@ class LiveMirrorEngine:
         """
         timings = {}
 
+        # --- Stage 0: Connect event bus (once) ---
+        if not self._event_bus_connected:
+            self._event_bus_connected = await self.event_bus.connect()
+
         # --- Stage 1: Ingest + Score + Analyze + Graph ---
         t0 = datetime.now()
         pipeline_result = await self.pipeline.run(
@@ -129,6 +143,7 @@ class LiveMirrorEngine:
                 "lessons": [],
                 "source_context": source_text,
                 "active_strategy": "Standard research protocol",
+                "gate_result": {},
             }
             config = {"configurable": {"thread_id": f"predict-{topic[:32]}"}}
             final_state = await research_board.ainvoke(board_state, config)
@@ -140,6 +155,14 @@ class LiveMirrorEngine:
             timings["research_board_ms"] = (
                 (datetime.now() - t_rb).total_seconds() * 1000
             )
+
+        # --- Stage 1c: RARE Open-Book Reasoning ---
+        t_rare = datetime.now()
+        source_context = "\n".join(
+            s.signal.content[:300] for s in scored_signals[:15]
+        )
+        rare_prompt = RAREReasoning.get_open_book_prompt(topic, source_context)
+        timings["rare_prompt_ms"] = (datetime.now() - t_rare).total_seconds() * 1000
 
         # --- Stage 2: Create agents from graph ---
         t1 = datetime.now()
@@ -222,6 +245,15 @@ class LiveMirrorEngine:
             except ImportError:
                 pass
 
+        # Publish to Redis event bus for multi-worker SSE
+        if self.event_bus.is_redis_connected:
+            await self.event_bus.publish("prediction_complete", {
+                "prediction_id": prediction.prediction_id,
+                "topic": prediction.topic,
+                "confidence": prediction.confidence,
+                "rare_context_used": bool(source_context),
+            })
+
         # Store for retrieval
         self._predictions[prediction.prediction_id] = {
             "prediction": prediction,
@@ -253,6 +285,8 @@ class LiveMirrorEngine:
         }
         if research_output:
             result["research"] = research_output
+        if rare_prompt:
+            result["rare_prompt"] = rare_prompt
         return result
 
     def learn(

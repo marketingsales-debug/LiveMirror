@@ -248,48 +248,102 @@ class KnowledgeGraph:
     def edge_count(self) -> int:
         return len(self._edges)
 
+    # Known entities dictionary for lowercase matching
+    _KNOWN_ENTITIES: Dict[str, EntityType] = {
+        "bitcoin": EntityType.ASSET, "ethereum": EntityType.ASSET,
+        "btc": EntityType.ASSET, "eth": EntityType.ASSET,
+        "sol": EntityType.ASSET, "solana": EntityType.ASSET,
+        "dogecoin": EntityType.ASSET, "cardano": EntityType.ASSET,
+        "openai": EntityType.ORGANIZATION, "google": EntityType.ORGANIZATION,
+        "microsoft": EntityType.ORGANIZATION, "apple": EntityType.ORGANIZATION,
+        "meta": EntityType.ORGANIZATION, "nvidia": EntityType.ORGANIZATION,
+        "tesla": EntityType.ORGANIZATION, "amazon": EntityType.ORGANIZATION,
+        "sec": EntityType.ORGANIZATION, "fed": EntityType.ORGANIZATION,
+        "congress": EntityType.ORGANIZATION, "senate": EntityType.ORGANIZATION,
+    }
+
+    _SKIP_WORDS = frozenset({
+        "the", "this", "that", "these", "those", "when", "where",
+        "what", "which", "who", "how", "why", "but", "and", "for",
+        "not", "with", "from", "into", "about", "after", "before",
+        "also", "just", "very", "much", "more", "than", "only",
+        "some", "many", "most", "such", "like", "will", "can",
+        "has", "had", "have", "been", "was", "were", "are",
+        "its", "their", "your", "our", "his", "her", "they",
+        "new", "said", "says", "would", "could", "should",
+        "now", "then", "here", "there", "still", "even",
+    })
+
     def _extract_entities(self, content: str) -> List[Tuple[str, EntityType]]:
         """
         Extract entities from text content.
 
-        Current: Heuristic extraction (capitalized phrases, known patterns).
-        Future: spaCy NER or LLM extraction.
+        Uses three strategies:
+        1. Capitalized phrase extraction (proper nouns)
+        2. Known-entity dictionary (catches lowercase mentions)
+        3. Pattern matching ($TICKER, @handles, URLs)
+
+        Deduplicates by lowercased canonical name.
         """
-        entities = []
+        import re
+        entities: List[Tuple[str, EntityType]] = []
+        seen_lower: set = set()
         words = content.split()
 
-        # Extract capitalized multi-word phrases (likely proper nouns)
+        # --- Strategy 1: Capitalized multi-word phrases ---
         i = 0
         while i < len(words):
             word = words[i]
-            # Skip very short or non-capitalized words
-            if len(word) < 2 or not word[0].isupper():
+            # Strip leading punctuation for check, but keep original
+            clean = word.strip("\"'([{")
+            if len(clean) < 2 or not clean[0].isupper():
                 i += 1
                 continue
 
-            # Collect consecutive capitalized words
-            phrase_words = [word]
+            phrase_words = [clean.rstrip(".,;:!?)]}\"'")]
             j = i + 1
-            while j < len(words) and words[j][0:1].isupper() and len(words[j]) > 1:
-                phrase_words.append(words[j])
-                j += 1
+            while j < len(words):
+                nxt = words[j].strip("\"'([{").rstrip(".,;:!?)]}\"'")
+                if len(nxt) > 1 and nxt[0].isupper():
+                    phrase_words.append(nxt)
+                    j += 1
+                else:
+                    break
 
             phrase = " ".join(phrase_words)
-            # Skip common sentence starters and single-char words
-            skip = {"The", "This", "That", "These", "Those", "When", "Where",
-                    "What", "Which", "Who", "How", "Why", "But", "And", "For",
-                    "Not", "With", "From", "Into", "About", "After", "Before"}
-            if phrase not in skip and len(phrase) > 2:
+            phrase_lower = phrase.lower()
+
+            if (phrase_lower not in self._SKIP_WORDS
+                    and len(phrase) > 2
+                    and phrase_lower not in seen_lower):
                 etype = self._classify_entity(phrase)
                 entities.append((phrase, etype))
+                seen_lower.add(phrase_lower)
 
             i = j if j > i + 1 else i + 1
 
-        # Extract $TICKER patterns
-        import re
-        tickers = re.findall(r'\$([A-Z]{1,5})\b', content)
-        for ticker in tickers:
-            entities.append((f"${ticker}", EntityType.ASSET))
+        # --- Strategy 2: Known-entity dictionary (catches lowercase) ---
+        content_lower = content.lower()
+        for name, etype in self._KNOWN_ENTITIES.items():
+            if name in content_lower and name not in seen_lower:
+                # Use title-case for display
+                entities.append((name.title() if len(name) > 3 else name.upper(), etype))
+                seen_lower.add(name)
+
+        # --- Strategy 3: Pattern matching ---
+        # $TICKER
+        for ticker in re.findall(r'\$([A-Z]{1,5})\b', content):
+            key = f"${ticker}".lower()
+            if key not in seen_lower:
+                entities.append((f"${ticker}", EntityType.ASSET))
+                seen_lower.add(key)
+
+        # @handles (social media entities)
+        for handle in re.findall(r'@([A-Za-z0-9_]{2,30})\b', content):
+            key = f"@{handle}".lower()
+            if key not in seen_lower:
+                entities.append((f"@{handle}", EntityType.PERSON))
+                seen_lower.add(key)
 
         return entities
 

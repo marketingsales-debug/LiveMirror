@@ -9,8 +9,7 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 
 from .security import require_auth
-from src.orchestrator.graph import research_board
-from src.guards.schemas import StructuredResponse
+from .agent_logic import AgentLoop
 
 router = APIRouter()
 
@@ -35,29 +34,13 @@ class SecretRequest(BaseModel):
 @router.post("/goal", response_model=GoalResponse)
 async def start_goal(request: GoalRequest, _auth: str = Depends(require_auth)):
     """Start the LangGraph Research Board for a goal (auth required)."""
-    
-    # Initialize state for the board
-    initial_state = {
-        "messages": [],
-        "goal": request.goal,
-        "context_files": request.context_files,
-        "findings": [],
-        "proposed_patch": None,
-        "verification_results": {},
-        "next_agent": "researcher",
-        "lessons": [],
-        "source_context": "No source context provided. Use SEARCH_WEB or READ_FILE if needed.",
-        "active_strategy": "Standard research protocol"
-    }
-
     try:
-        # Run the graph
-        config = {"configurable": {"thread_id": "session_1"}}
-        result = await research_board.ainvoke(initial_state, config=config)
-        
-        # Extract thoughts from messages
-        thoughts = [m.content for m in result["messages"]]
-        
+        loop = AgentLoop(PROJECT_ROOT)
+        thoughts = await loop.run_goal(
+            request.goal,
+            request.context_files,
+            max_iterations=request.max_iterations,
+        )
         return GoalResponse(thoughts=thoughts, status="completed")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent Board failed: {e}")
@@ -66,8 +49,21 @@ async def start_goal(request: GoalRequest, _auth: str = Depends(require_auth)):
 @router.get("/files")
 async def list_workspace_files(_auth: str = Depends(require_auth)):
     """Returns all files the agent can see (auth required)."""
-    # Simple placeholder for file listing
-    return {"files": ["main.py", "src/orchestrator/graph.py", "backend/app/main.py"]}
+    try:
+        loop = AgentLoop(PROJECT_ROOT)
+        return {"files": loop.files.list_files()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/exec")
+async def run_command(command: str, _auth: str = Depends(require_auth)):
+    """Execute a command inside the SelfMirror workspace (auth required)."""
+    try:
+        loop = AgentLoop(PROJECT_ROOT)
+        return loop.exec.run_command(command)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/status")

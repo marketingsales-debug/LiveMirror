@@ -24,7 +24,6 @@ def _derive_fernet_key() -> Optional[bytes]:
     raw = os.getenv("LIVEMIRROR_SECRET_KEY")
     if not raw:
         return None
-    # Fernet needs a url-safe base64-encoded 32-byte key
     digest = hashlib.sha256(raw.encode()).digest()
     return base64.urlsafe_b64encode(digest)
 
@@ -42,7 +41,7 @@ class LessonLearntStore:
                 self._fernet = Fernet(key)
         self._init_db()
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Create tables if they don't exist."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
@@ -56,7 +55,6 @@ class LessonLearntStore:
                     relevance_score REAL
                 )
             """)
-            # Relational Graph Table (Phase 8)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS triples (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,7 +65,6 @@ class LessonLearntStore:
                     source_id TEXT
                 )
             """)
-            # Dynamic Secrets Table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS secrets (
                     key_name TEXT PRIMARY KEY,
@@ -90,11 +87,10 @@ class LessonLearntStore:
             try:
                 return self._fernet.decrypt(ciphertext.encode()).decode()
             except Exception:
-                # Legacy plaintext value or wrong key — return raw
                 return ciphertext
         return ciphertext
 
-    def set_secret(self, name: str, value: str):
+    def set_secret(self, name: str, value: str) -> None:
         """Upsert an encrypted secret."""
         encrypted = self._encrypt(value)
         with sqlite3.connect(self.db_path) as conn:
@@ -117,13 +113,13 @@ class LessonLearntStore:
             cursor = conn.execute("SELECT key_name, updated_at, status FROM secrets")
             return [{"name": row[0], "updated_at": row[1], "status": row[2]} for row in cursor.fetchall()]
 
-    def delete_secret(self, name: str):
+    def delete_secret(self, name: str) -> None:
         """Remove a secret."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("DELETE FROM secrets WHERE key_name = ?", (name.upper(),))
             conn.commit()
 
-    def save_triple(self, subject: str, predicate: str, obj: str, confidence: float = 1.0):
+    def save_triple(self, subject: str, predicate: str, obj: str, confidence: float = 1.0) -> None:
         """Save a knowledge graph triple."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
@@ -132,7 +128,7 @@ class LessonLearntStore:
             )
             conn.commit()
 
-    def save_lesson(self, agent_id: str, topic: str, content: str, relevance: float = 1.0):
+    def save_lesson(self, agent_id: str, topic: str, content: str, relevance: float = 1.0) -> None:
         """Save a new lesson learned by an agent."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
@@ -145,28 +141,19 @@ class LessonLearntStore:
         """Retrieve the most relevant lessons, optionally filtered by topic."""
         query = "SELECT agent_id, topic, content, created_at, relevance_score FROM lessons"
         params = []
-        
         if topic:
             query += " WHERE topic = ?"
             params.append(topic)
-        
         query += " ORDER BY created_at DESC LIMIT ?"
         params.append(limit)
-
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(query, params)
             return [
-                {
-                    "agent_id": row[0],
-                    "topic": row[1],
-                    "content": row[2],
-                    "ts": row[3],
-                    "score": row[4]
-                }
+                {"agent_id": row[0], "topic": row[1], "content": row[2], "ts": row[3], "score": row[4]}
                 for row in cursor.fetchall()
             ]
 
-    def clear_all(self):
+    def clear_all(self) -> None:
         """Wipe the memory."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("DELETE FROM lessons")

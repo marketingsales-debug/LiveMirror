@@ -17,6 +17,7 @@ let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
 let particles: THREE.Points;
 let animationId: number;
+let handleResize: (() => void) | null = null;
 
 onMounted(() => {
   if (!container.value) return;
@@ -84,7 +85,7 @@ onMounted(() => {
   animate();
 
   // Resize handler
-  const handleResize = () => {
+  handleResize = () => {
     if (!container.value) return;
     camera.aspect = container.value.clientWidth / container.value.clientHeight;
     camera.updateProjectionMatrix();
@@ -96,7 +97,7 @@ onMounted(() => {
 onUnmounted(() => {
   cancelAnimationFrame(animationId);
   if (renderer) renderer.dispose();
-  window.removeEventListener('resize', () => {});
+  if (handleResize) window.removeEventListener('resize', handleResize);
 });
 </script>
 

@@ -17,6 +17,7 @@ from ..memory.lesson_learnt import LessonLearntStore
 from ..memory.evolutionary import EvolutionaryMemory
 from ..reasoning.rare import RAREReasoning
 from ..routing.router import ModelRouter
+from ..skills.ablation import ExperimentGate
 
 # --- Shared Components ---
 MEMORY_STORE = LessonLearntStore()
@@ -48,7 +49,8 @@ class AgentState(TypedDict):
     lessons: List[str]
     source_context: str 
     # EvoScientist fields
-    active_strategy: str 
+    active_strategy: str
+    gate_result: Dict[str, Any]
 
 # --- Node Definitions ---
 
@@ -120,6 +122,58 @@ async def coder_node(state: AgentState):
             "messages": [AIMessage(content=f"Coder error: {e}")],
             "next_agent": "analyst",
         }
+
+async def gate_node(state: AgentState):
+    """Gate Node: Runs 3-stage ExperimentGate (CodeScientist pattern) on the patch."""
+    print("--- [GATE] VALIDATING PATCH ---")
+
+    patch = state.get("proposed_patch", "")
+    if not patch or patch == "NO_PATCH":
+        return {
+            "messages": [AIMessage(content="Gate: No patch to validate, skipping.")],
+            "gate_result": {"stage": "skipped", "success": False, "score": 0.0},
+            "next_agent": "ema",
+        }
+
+    # Lightweight lint check: patch should contain diff markers or code
+    def lint_fn():
+        return len(patch.strip()) > 20
+
+    # Pilot: ask LLM if patch is syntactically valid
+    async def test_fn():
+        try:
+            resp = await get_llm_frontier().ainvoke(
+                f"Is this patch syntactically valid? Reply ONLY 'yes' or 'no'.\n\n{patch[:800]}"
+            )
+            return "yes" in resp.content.lower()
+        except Exception:
+            return False
+
+    # Full experiment: LLM scores quality 0-1
+    async def backtest_fn():
+        try:
+            resp = await get_llm_frontier().ainvoke(
+                f"Score this patch quality 0.0-1.0. Reply ONLY the number.\n\n{patch[:800]}"
+            )
+            return float(resp.content.strip())
+        except Exception:
+            return 0.5
+
+    result = await ExperimentGate.run_experiment("patch-gate", lint_fn, test_fn, backtest_fn)
+
+    if not result["success"]:
+        return {
+            "messages": [AIMessage(content=f"Gate REJECTED at stage: {result['stage']}")],
+            "gate_result": result,
+            "next_agent": "coder",  # Send back to coder for retry
+        }
+
+    return {
+        "messages": [AIMessage(content=f"Gate PASSED (score: {result['score']:.2f})")],
+        "gate_result": result,
+        "next_agent": "analyst",
+    }
+
 
 async def analyst_node(state: AgentState):
     """Analyst Node: Evaluates the proposed patch using LLM-as-judge."""
@@ -198,25 +252,35 @@ async def ema_node(state: AgentState):
 # --- Graph Construction ---
 
 def create_research_board():
-    """Builds the LangGraph state machine."""
+    """Builds the LangGraph state machine with ExperimentGate."""
     workflow = StateGraph(AgentState)
 
     workflow.add_node("researcher", researcher_node)
     workflow.add_node("coder", coder_node)
+    workflow.add_node("gate", gate_node)
     workflow.add_node("analyst", analyst_node)
     workflow.add_node("ema", ema_node)
 
     workflow.set_entry_point("researcher")
-    
+
     def router(state: AgentState):
         step = state.get("next_agent", "end")
         return END if step == "end" else step
 
-    workflow.add_conditional_edges("researcher", router, {"researcher":"researcher","coder":"coder","ema":"ema","end":END})
-    workflow.add_conditional_edges("coder", router, {"analyst":"analyst","end":END})
-    workflow.add_conditional_edges("analyst", router, {"ema":"ema","coder":"coder","end":END})
+    workflow.add_conditional_edges("researcher", router, {
+        "researcher": "researcher", "coder": "coder", "ema": "ema", "end": END,
+    })
+    # Coder always goes to gate first
+    workflow.add_edge("coder", "gate")
+    # Gate routes to analyst (pass) or back to coder (fail)
+    workflow.add_conditional_edges("gate", router, {
+        "analyst": "analyst", "coder": "coder", "ema": "ema", "end": END,
+    })
+    workflow.add_conditional_edges("analyst", router, {
+        "ema": "ema", "coder": "coder", "end": END,
+    })
     workflow.add_edge("ema", END)
-    
+
     return workflow.compile(checkpointer=MemorySaver())
 
 research_board = create_research_board()
