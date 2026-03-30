@@ -11,9 +11,16 @@ from pathlib import Path
 def setup_kaggle():
     print("🚀 Starting LiveMirror Kaggle Setup...")
     
-    # 1. Detect base directory
-    base_dir = Path(os.getcwd())
-    print(f"📍 Working Directory: {base_dir}")
+    # 1. Detect base directory accurately
+    # Handle nested LiveMirror/LiveMirror if user cloned incorrectly
+    curr = Path(os.getcwd())
+    if (curr / "LiveMirror").exists():
+        base_dir = curr / "LiveMirror"
+    else:
+        base_dir = curr
+        
+    print(f"📍 Base Directory Detected: {base_dir}")
+    os.chdir(str(base_dir))
     
     # 2. Install Python dependencies
     print("📦 Installing Python dependencies...")
@@ -25,10 +32,18 @@ def setup_kaggle():
     print("🎨 Building Frontend Dashboard...")
     frontend_dir = base_dir / "frontend"
     if frontend_dir.exists():
+        # Install and build
         subprocess.run(["npm", "install"], cwd=str(frontend_dir), check=True)
         subprocess.run(["npm", "run", "build"], cwd=str(frontend_dir), check=True)
+        
+        # Double check dist exists
+        dist_path = frontend_dir / "dist"
+        if (dist_path / "index.html").exists():
+            print(f"✅ Frontend build successful at {dist_path}")
+        else:
+            print("❌ Frontend build failed to produce index.html")
     else:
-        print("⚠️ Warning: frontend directory not found. Dashboard will be unavailable.")
+        print("⚠️ Warning: frontend directory not found.")
     
     # 4. Initialize Memory Stores in writable directory
     print("💾 Initializing Memory Stores...")
@@ -42,7 +57,7 @@ def setup_kaggle():
     
     backend_script = base_dir / "backend" / "run.py"
     
-    # Using start_new_session to decouple the process
+    # Decouple and start
     backend_proc = subprocess.Popen(
         ["python", str(backend_script)],
         cwd=str(base_dir),
@@ -54,8 +69,8 @@ def setup_kaggle():
     )
     
     # 6. Create Public Tunnel (Wait for boot)
-    print("⏳ Waiting for backend to initialize (15s)...")
-    time.sleep(15)
+    print("⏳ Waiting for backend to initialize (20s)...")
+    time.sleep(20)
     
     print("\n🔗 Creating Public Dashboard Tunnel...")
     print("--- ACCESS LINK BELOW ---")

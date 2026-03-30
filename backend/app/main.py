@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from .api.health import router as health_router
 from .api.ingest import router as ingest_router
@@ -22,7 +22,6 @@ from backend.self_mirror.main import router as self_mirror_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
-    # Startup — wire shared graph between ingestion and simulation
     print("LiveMirror engine starting...")
     try:
         from .api.ingest import get_pipeline
@@ -33,7 +32,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"LiveMirror: Graph wiring skipped ({e})")
 
-    # Try connecting Redis event bus
     try:
         from .api.stream import event_bus
         if hasattr(event_bus, 'connect'):
@@ -43,7 +41,6 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown — close Redis
     try:
         from .api.stream import event_bus
         if hasattr(event_bus, 'close'):
@@ -60,21 +57,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow frontend
+# CORS — allow everything for cloud tunneling
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Broaden for Cloud/Kaggle tunneling
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Root health check for Docker/load balancer
+# Root health check
 @app.get("/health")
 async def root_health():
-    """Root health check for Docker/Kubernetes."""
     return {"status": "ok"}
-
 
 # API Routers
 app.include_router(health_router, prefix="/api", tags=["health"])
@@ -85,18 +80,45 @@ app.include_router(stream_router, prefix="/api/stream", tags=["real-time"])
 app.include_router(metrics_router, prefix="/api/metrics", tags=["monitoring"])
 app.include_router(self_mirror_router, prefix="/api/self-mirror", tags=["autonomous"])
 
-# --- Frontend Static Serving (For Kaggle/Cloud) ---
-# This allows the backend to serve the dashboard UI directly
-frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+# --- Robust Frontend Serving (SPA Pattern) ---
 
-if os.path.exists(frontend_path):
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+# 1. Resolve Frontend Path
+# We check multiple levels to handle Kaggle's potential nested cloning
+current_dir = os.path.dirname(__file__)
+possible_paths = [
+    os.path.abspath(os.path.join(current_dir, "..", "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(current_dir, "..", "frontend", "dist")),
+    "/kaggle/working/LiveMirror/frontend/dist",
+    "/kaggle/working/LiveMirror/LiveMirror/frontend/dist"
+]
+
+frontend_path = None
+for p in possible_paths:
+    if os.path.exists(os.path.join(p, "index.html")):
+        frontend_path = p
+        print(f"✅ Found frontend assets at: {frontend_path}")
+        break
+
+if frontend_path:
+    # Mount static assets (css, js, images)
+    # Note: We mount to /assets or similar if possible, but for SPA we often mount to /
+    # To avoid colliding with /api, we mount this LAST
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_path, "assets")), name="static")
+
+    @app.get("/{catchall:path}")
+    async def serve_frontend(catchall: str):
+        # If it looks like an API call but reached here, it's a 404
+        if catchall.startswith("api/"):
+            return JSONResponse(status_code=404, content={"detail": "API Route Not Found"})
+        
+        # Otherwise, serve index.html (SPA routing)
+        return FileResponse(os.path.join(frontend_path, "index.html"))
 else:
     @app.get("/")
     async def root_fallback():
         return {
             "status": "online",
             "message": "LiveMirror Backend Active. Frontend build not found.",
-            "api_docs": "/docs",
-            "setup_hint": "Run 'npm run build' in the frontend directory to enable the dashboard."
+            "search_locations": possible_paths,
+            "api_docs": "/docs"
         }
