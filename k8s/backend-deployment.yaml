@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: livemirror-backend
+  labels:
+    app: livemirror
+    tier: backend
+spec:
+  replicas: 3 # Scale to 3 workers for high-volume prediction
+  selector:
+    matchLabels:
+      app: livemirror
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: livemirror
+        tier: backend
+    spec:
+      containers:
+      - name: backend
+        image: marketingsales-debug/livemirror-backend:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - secretRef:
+            name: livemirror-secrets
+        resources:
+          limits:
+            cpu: "1.0"
+            memory: "4Gi"
+          requests:
+            cpu: "0.5"
+            memory: "2Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: livemirror
+    tier: backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP

@@ -7,8 +7,27 @@ Extracted logic from Mem0 and Stanford Generative Agents.
 import sqlite3
 import json
 import os
+import base64
+import hashlib
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+
+try:
+    from cryptography.fernet import Fernet
+    _HAS_FERNET = True
+except ImportError:
+    _HAS_FERNET = False
+
+
+def _derive_fernet_key() -> Optional[bytes]:
+    """Derive a Fernet key from LIVEMIRROR_SECRET_KEY env var."""
+    raw = os.getenv("LIVEMIRROR_SECRET_KEY")
+    if not raw:
+        return None
+    # Fernet needs a url-safe base64-encoded 32-byte key
+    digest = hashlib.sha256(raw.encode()).digest()
+    return base64.urlsafe_b64encode(digest)
+
 
 class LessonLearntStore:
     """Handles persistent storage of agent lessons across sessions."""
@@ -16,6 +35,11 @@ class LessonLearntStore:
     def __init__(self, db_path: str = "data/memory/lessons.db"):
         self.db_path = db_path
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        self._fernet = None
+        if _HAS_FERNET:
+            key = _derive_fernet_key()
+            if key:
+                self._fernet = Fernet(key)
         self._init_db()
 
     def _init_db(self):
@@ -54,21 +78,38 @@ class LessonLearntStore:
             """)
             conn.commit()
 
+    def _encrypt(self, plaintext: str) -> str:
+        """Encrypt a value. Falls back to plaintext if Fernet unavailable."""
+        if self._fernet:
+            return self._fernet.encrypt(plaintext.encode()).decode()
+        return plaintext
+
+    def _decrypt(self, ciphertext: str) -> str:
+        """Decrypt a value. Falls back to returning as-is if Fernet unavailable."""
+        if self._fernet:
+            try:
+                return self._fernet.decrypt(ciphertext.encode()).decode()
+            except Exception:
+                # Legacy plaintext value or wrong key — return raw
+                return ciphertext
+        return ciphertext
+
     def set_secret(self, name: str, value: str):
-        """Upsert a secret key."""
+        """Upsert an encrypted secret."""
+        encrypted = self._encrypt(value)
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO secrets (key_name, key_value, updated_at) VALUES (?, ?, ?)",
-                (name.upper(), value, datetime.now().isoformat())
+                (name.upper(), encrypted, datetime.now().isoformat())
             )
             conn.commit()
 
     def get_secret(self, name: str) -> Optional[str]:
-        """Retrieve a specific secret."""
+        """Retrieve and decrypt a specific secret."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute("SELECT key_value FROM secrets WHERE key_name = ?", (name.upper(),))
             row = cursor.fetchone()
-            return row[0] if row else None
+            return self._decrypt(row[0]) if row else None
 
     def list_secrets(self) -> List[Dict[str, Any]]:
         """List all secret names and their status (not values)."""

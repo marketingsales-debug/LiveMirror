@@ -22,6 +22,7 @@ from ..graph.knowledge.graph import KnowledgeGraph
 from ..fusion.pipeline import FusionPipeline
 from ..fusion.types import FusionConfig
 from ..fusion.batch.processor import BatchProcessor
+from ..skills.tournament import SignalTournament
 
 
 class LiveMirrorPipeline:
@@ -39,6 +40,8 @@ class LiveMirrorPipeline:
         scorer: Optional[SignalScorer] = None,
         analysis: Optional[AnalysisPipeline] = None,
         graph: Optional[KnowledgeGraph] = None,
+        use_tournament: bool = True,
+        tournament_top_k: int = 30,
     ):
         self.ingestion = IngestionManager()
         self.scorer = scorer or SignalScorer()
@@ -46,6 +49,8 @@ class LiveMirrorPipeline:
         self.graph = graph or KnowledgeGraph()
         self.fusion = FusionPipeline(FusionConfig())
         self.batch_processor = BatchProcessor(self.fusion, batch_size=self.fusion.config.batch_size)
+        self.use_tournament = use_tournament
+        self.tournament_top_k = tournament_top_k
         self._last_run_stats = {}
 
     def register_ingester(self, ingester) -> None:
@@ -87,6 +92,25 @@ class LiveMirrorPipeline:
         t1 = datetime.now()
         scored = self.scorer.score_all(raw_signals, query)
         timings["scoring_ms"] = (datetime.now() - t1).total_seconds() * 1000
+
+        # --- 2b. Elo Tournament Filter (optional) ---
+        if self.use_tournament and len(scored) > self.tournament_top_k:
+            t_elo = datetime.now()
+            tournament_input = [
+                {"id": s.signal.id, "content": s.signal.content[:300], "score": s.composite_score}
+                for s in scored
+            ]
+
+            async def _score_judge(a, b):
+                """Simple heuristic judge — pick signal with higher composite score."""
+                return a["id"] if a["score"] >= b["score"] else b["id"]
+
+            ranked = await SignalTournament.run_tournament(
+                tournament_input, _score_judge, rounds_multiplier=2
+            )
+            top_ids = {r["id"] for r in ranked[: self.tournament_top_k]}
+            scored = [s for s in scored if s.signal.id in top_ids]
+            timings["tournament_ms"] = (datetime.now() - t_elo).total_seconds() * 1000
 
         # --- 3. Multimodal Analysis (Parallel Batch Processing) ---
         t2 = datetime.now()

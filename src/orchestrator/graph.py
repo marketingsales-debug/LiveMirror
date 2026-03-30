@@ -21,7 +21,20 @@ from ..routing.router import ModelRouter
 # --- Shared Components ---
 MEMORY_STORE = LessonLearntStore()
 EVO_MEMORY = EvolutionaryMemory()
-LLM_FRONTIER = ChatOpenAI(model="gpt-4o", temperature=0.0)
+LLM_FRONTIER: Optional[ChatOpenAI] = None
+
+
+def get_llm_frontier() -> ChatOpenAI:
+    """Lazily initialize the frontier model to avoid import-time API key errors."""
+    global LLM_FRONTIER
+    if LLM_FRONTIER is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY must be set to initialize the frontier LLM."
+            )
+        LLM_FRONTIER = ChatOpenAI(model="gpt-4o", temperature=0.0, api_key=api_key)
+    return LLM_FRONTIER
 
 class AgentState(TypedDict):
     """The state of the multi-agent research board."""
@@ -55,7 +68,7 @@ async def researcher_node(state: AgentState):
         "Analyze and propose next step in JSON."
     )
 
-    structured_llm = LLM_FRONTIER.with_structured_output(StructuredResponse)
+    structured_llm = get_llm_frontier().with_structured_output(StructuredResponse)
     try:
         response = await structured_llm.ainvoke(prompt)
         
@@ -83,18 +96,69 @@ async def researcher_node(state: AgentState):
         }
 
 async def coder_node(state: AgentState):
-    """EA Node: Implements code changes in the Research Sandbox."""
+    """EA Node: Generates a concrete patch from researcher findings."""
     print("--- [EA] CODING ---")
-    return {"messages": [AIMessage(content="Engineer proposed a patch.")], "next_agent": "analyst"}
+
+    findings_text = "\n".join(state.get("findings", []))
+    prompt = (
+        "You are an expert software engineer. Based on these research findings, "
+        "write a concrete code patch (unified diff format) that implements the improvement.\n\n"
+        f"FINDINGS:\n{findings_text}\n\n"
+        f"GOAL: {state['goal']}\n\n"
+        "Return ONLY the patch. If no actionable change, return 'NO_PATCH'."
+    )
+    try:
+        response = await get_llm_frontier().ainvoke(prompt)
+        patch = response.content.strip()
+        return {
+            "messages": [AIMessage(content=f"Engineer proposed patch:\n{patch[:500]}")],
+            "proposed_patch": patch,
+            "next_agent": "analyst",
+        }
+    except Exception as e:
+        return {
+            "messages": [AIMessage(content=f"Coder error: {e}")],
+            "next_agent": "analyst",
+        }
 
 async def analyst_node(state: AgentState):
-    """Analyst Node: Runs backtests and verifies patches."""
+    """Analyst Node: Evaluates the proposed patch using LLM-as-judge."""
     print("--- [Analyst] ANALYZING ---")
-    # Simulation of analysis result
+
+    patch = state.get("proposed_patch", "")
+    findings = "\n".join(state.get("findings", []))
+    baseline = EVO_MEMORY.get_last_accuracy()
+
+    prompt = (
+        "You are a rigorous code analyst. Evaluate this patch against the research goal.\n\n"
+        f"GOAL: {state['goal']}\n"
+        f"FINDINGS:\n{findings}\n"
+        f"PATCH:\n{patch[:1000]}\n"
+        f"BASELINE ACCURACY: {baseline}\n\n"
+        "Score the patch 0.0-1.0 on: correctness, relevance, risk.\n"
+        "Return JSON: {\"accuracy\": float, \"correctness\": float, \"risk\": float, \"verdict\": str}"
+    )
+    try:
+        response = await get_llm_frontier().ainvoke(prompt)
+        import json as _json
+        # Try to parse structured result from LLM
+        text = response.content.strip()
+        # Extract JSON from possible markdown fences
+        if "```" in text:
+            text = text.split("```")[1].strip()
+            if text.startswith("json"):
+                text = text[4:].strip()
+        result = _json.loads(text)
+        accuracy = float(result.get("accuracy", baseline))
+        verdict = result.get("verdict", "unknown")
+    except Exception:
+        accuracy = baseline
+        verdict = "parse_error"
+
     return {
-        "messages": [AIMessage(content="Backtest accuracy: 94.2% (Target Achieved)")], 
-        "verification_results": {"accuracy": 0.942},
-        "next_agent": "ema"
+        "messages": [AIMessage(content=f"Analyst verdict: {verdict} (accuracy: {accuracy:.3f})")],
+        "verification_results": {"accuracy": accuracy, "verdict": verdict, "baseline": baseline},
+        "next_agent": "ema",
     }
 
 async def ema_node(state: AgentState):
@@ -112,14 +176,17 @@ async def ema_node(state: AgentState):
     )
 
     # Simple direct LLM call for strategy distillation
-    strategy_update = await LLM_FRONTIER.ainvoke(strategy_prompt)
+    strategy_update = await get_llm_frontier().ainvoke(strategy_prompt)
 
     # Record to Evolutionary Memory (EvoScientist Pattern)
+    baseline = EVO_MEMORY.get_last_accuracy()
+    accuracy = state["verification_results"].get("accuracy", baseline)
+    kept = accuracy >= baseline
     EVO_MEMORY.record_experiment(
         code_change=state.get("proposed_patch", "None"),
-        metric_before=0.86, # Baseline
-        metric_after=state["verification_results"].get("accuracy", 0.86),
-        kept=True
+        metric_before=baseline,
+        metric_after=accuracy,
+        kept=kept,
     )
 
     return {

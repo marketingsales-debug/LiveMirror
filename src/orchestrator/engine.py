@@ -25,6 +25,7 @@ from ..ingestion.platforms.reddit import RedditIngester
 from ..ingestion.platforms.hackernews import HackerNewsIngester
 from ..ingestion.platforms.polymarket import PolymarketIngester
 from ..ingestion.platforms.web_search import WebSearchIngester
+from ..orchestrator.graph import research_board, AgentState
 
 
 class LiveMirrorEngine:
@@ -73,6 +74,7 @@ class LiveMirrorEngine:
         platforms: Optional[List[Platform]] = None,
         max_signals_per_platform: int = 50,
         use_fusion: bool = True,
+        use_research_board: bool = False,
     ) -> Dict[str, Any]:
         """
         Run the full prediction cycle.
@@ -108,6 +110,36 @@ class LiveMirrorEngine:
         timings["pipeline_ms"] = (datetime.now() - t0).total_seconds() * 1000
 
         scored_signals = pipeline_result["scored_signals"]
+
+        # --- Stage 1b: LangGraph Research Board (optional) ---
+        research_output = None
+        if use_research_board:
+            t_rb = datetime.now()
+            source_text = "\n".join(
+                s.signal.content[:200] for s in scored_signals[:20]
+            )
+            board_state: AgentState = {
+                "messages": [],
+                "goal": topic,
+                "context_files": [],
+                "findings": [],
+                "proposed_patch": None,
+                "verification_results": {},
+                "next_agent": "researcher",
+                "lessons": [],
+                "source_context": source_text,
+                "active_strategy": "Standard research protocol",
+            }
+            config = {"configurable": {"thread_id": f"predict-{topic[:32]}"}}
+            final_state = await research_board.ainvoke(board_state, config)
+            research_output = {
+                "findings": final_state.get("findings", []),
+                "strategy": final_state.get("active_strategy", ""),
+                "verification": final_state.get("verification_results", {}),
+            }
+            timings["research_board_ms"] = (
+                (datetime.now() - t_rb).total_seconds() * 1000
+            )
 
         # --- Stage 2: Create agents from graph ---
         t1 = datetime.now()
@@ -198,7 +230,7 @@ class LiveMirrorEngine:
             "signals": scored_signals,  # Store signals for future fine-tuning
         }
 
-        return {
+        result = {
             "prediction": prediction,
             "debate": {
                 "direction": debate_result.direction,
@@ -219,6 +251,9 @@ class LiveMirrorEngine:
             "pipeline": pipeline_result.get("timing", {}),
             "timing": timings,
         }
+        if research_output:
+            result["research"] = research_output
+        return result
 
     def learn(
         self,
