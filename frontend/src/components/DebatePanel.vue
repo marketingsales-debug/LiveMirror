@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-type Direction = 'BULL' | 'BEAR' | 'NEUTRAL';
+type Direction = 'BULL' | 'BEAR' | 'NEUTRAL' | string;
 
 interface PredictionDetails {
   text: string;
@@ -60,7 +60,7 @@ const bullPct = computed(() => {
   <div class="debate-panel">
     <header>
       <h3>Agent Debate Consensus</h3>
-      <p v-if="hasData">Topic: {{ report.topic }}</p>
+      <p v-if="hasData">Topic: {{ report?.topic }}</p>
       <p v-else>Waiting for prediction pipeline...</p>
     </header>
 

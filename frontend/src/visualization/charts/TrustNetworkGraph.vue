@@ -74,7 +74,7 @@ const drawGraph = () => {
     .attr('stroke-width', (d) => Math.max(1, (d.trust ?? 0) * 5)); 
 
   const node = svg.append('g')
-    .selectAll('circle')
+    .selectAll<SVGCircleElement, TrustNode>('circle')
     .data(graphNodes)
     .enter().append('circle')
     .attr('r', 12)
@@ -84,7 +84,7 @@ const drawGraph = () => {
       if (d.stance === 'opposing') return '#ff4d4d'; // Red
       return '#888888'; // Neutral
     })
-    .call(d3.drag()
+    .call(d3.drag<SVGCircleElement, TrustNode>()
       .on('start', (event: d3.D3DragEvent<SVGCircleElement, TrustNode, TrustNode>, d) => {
         if (!event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;

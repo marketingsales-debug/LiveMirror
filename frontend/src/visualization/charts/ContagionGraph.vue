@@ -62,7 +62,7 @@ onMounted(() => {
   }
 
   const node = svg.append('g')
-    .selectAll('circle')
+    .selectAll<SVGCircleElement, GraphNode>('circle')
     .data(nodes)
     .join('circle')
     .attr('r', 5)
