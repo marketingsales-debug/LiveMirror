@@ -6,33 +6,20 @@ Fully implemented nodes with reasoning, routing, and memory.
 import operator
 import os
 from typing import Annotated, Sequence, TypedDict, List, Dict, Any, Optional
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import BaseMessage, AIMessage
-from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
-
-from ..guards.schemas import StructuredResponse
-from ..guards.citation import CitationVerifier
-from ..memory.lesson_learnt import LessonLearntStore
-from ..memory.evolutionary import EvolutionaryMemory
-from ..skills.ablation import ExperimentGate
+from ..shared.llm import LLMFactory
 
 # --- Shared Components ---
 MEMORY_STORE = LessonLearntStore()
 EVO_MEMORY = EvolutionaryMemory()
-LLM_FRONTIER: Optional[ChatOpenAI] = None
+LLM_FRONTIER: Optional[Any] = None
 
 
-def get_llm_frontier() -> ChatOpenAI:
+def get_llm_frontier() -> Any:
     """Lazily initialize the frontier model to avoid import-time API key errors."""
     global LLM_FRONTIER
     if LLM_FRONTIER is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "OPENAI_API_KEY must be set to initialize the frontier LLM."
-            )
-        LLM_FRONTIER = ChatOpenAI(model="gpt-4o", temperature=0.0, api_key=api_key)
+        # We use the 'frontier' tier (DeepSeek v3.2) for the orchestrator
+        LLM_FRONTIER = LLMFactory.get_model(tier="frontier", temperature=0.0)
     return LLM_FRONTIER
 
 class AgentState(TypedDict):

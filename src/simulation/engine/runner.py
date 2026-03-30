@@ -171,43 +171,46 @@ class SimulationRunner:
 
         return state
 
-    def _execute_round(
+    async def _execute_round(
         self,
         state: SimulationState,
         round_num: int,
     ) -> RoundSummary:
-        """Execute a single simulation round."""
+        """Execute a single simulation round (asynchronously for LLM support)."""
         round_decisions: List[AgentDecision] = []
         round_actions: List[SimulationAction] = []
         active_count = 0
 
-        # Phase 1: Activate agents and collect decisions
+        # Phase 1: Activate agents and collect decisions (Parallel where possible)
+        tasks = []
         for agent in state.agents:
             if not self._behavior.should_activate(agent, round_num):
                 continue
             active_count += 1
-
-            decision = self._behavior.decide_action(
+            tasks.append(self._behavior.decide_action(
                 agent=agent,
                 topic_sentiment=state.topic_sentiment,
                 recent_actions=round_decisions,
-            )
-            round_decisions.append(decision)
-
-            # Convert to SimulationAction for logging
-            agent_map = state.agent_map
-            action = SimulationAction(
-                round_num=round_num,
-                timestamp=datetime.now().isoformat(),
-                platform=state.topic,
-                agent_id=decision.agent_id,
-                agent_name=agent_map[decision.agent_id].name,
-                action_type=decision.action.value,
-                sentiment=decision.sentiment,
-                influence=decision.influence_delta,
-                target_id=decision.target_agent_id,
-            )
-            round_actions.append(action)
+            ))
+        
+        if tasks:
+            # Note: We await them to simulate the flow of the round
+            results = await asyncio.gather(*tasks)
+            for decision in results:
+                round_decisions.append(decision)
+                agent_map = state.agent_map
+                action = SimulationAction(
+                    round_num=round_num,
+                    timestamp=datetime.now().isoformat(),
+                    platform=state.topic,
+                    agent_id=decision.agent_id,
+                    agent_name=agent_map[decision.agent_id].name,
+                    action_type=decision.action.value,
+                    sentiment=decision.sentiment,
+                    influence=decision.influence_delta,
+                    target_id=decision.target_agent_id,
+                )
+                round_actions.append(action)
 
         state.actions.extend(round_actions)
 

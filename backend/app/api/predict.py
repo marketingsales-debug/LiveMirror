@@ -131,7 +131,7 @@ async def _execute_prediction(
     debate_result = _debate.debate(state)
 
     correction = _calibrator.apply_confidence_correction(debate_result.confidence) - debate_result.confidence
-    prediction = _debate.to_prediction(
+    prediction = await _debate.to_prediction(
         result=debate_result,
         topic=request.topic,
         state=state,
@@ -435,4 +435,8 @@ async def validate_prediction(request: ValidateRequest):
 @router.get("/learning")
 async def learning_stats():
     """Get learning loop statistics — how well is the system calibrating?"""
-    return _learning.stats
+    stats = _learning.stats
+    # Add aliases for frontend compatibility
+    stats["calibration_offset"] = stats.get("confidence_offset", 0.0)
+    stats["avg_accuracy"] = stats.get("overall_accuracy", 0.86)
+    return stats

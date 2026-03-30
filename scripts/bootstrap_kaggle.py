@@ -1,31 +1,24 @@
-#!/usr/bin/env python3
-"""
-LiveMirror Multi-Model Agentic Simulation - Kaggle Bootstrap Script
-This script automates the setup, dependency installation, and health verification for LiveMirror on Kaggle.
-"""
-
 import os
 import subprocess
 import time
 import urllib.request
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 # --- Configuration & Registry ---
 
 NVIDIA_REGISTRY = {
-    "NVIDIA_API_KEY_PRIMARY": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_MISTRAL": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_QWEN": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_NEMOTRON": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_LANGCHAIN": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_RERANK": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_TABLE": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_QWEN_397B": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_QWEN_LC": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_STEPFUN": "nvapi-REPLACE_WITH_YOUR_KEY",
-    "NVIDIA_API_KEY_DEEPSEEK": "nvapi-REPLACE_WITH_YOUR_KEY",
+    "NVIDIA_API_KEY_PRIMARY": "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",
+    "NVIDIA_API_KEY_MISTRAL": "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",
+    "NVIDIA_API_KEY_QWEN": "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",
+    "NVIDIA_API_KEY_NEMOTRON": "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",
+    "NVIDIA_API_KEY_LANGCHAIN": "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",
+    "NVIDIA_API_KEY_RERANK": "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",
+    "NVIDIA_API_KEY_TABLE": "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",
+    "NVIDIA_API_KEY_QWEN_397B": "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",
+    "NVIDIA_API_KEY_QWEN_LC": "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",
+    "NVIDIA_API_KEY_STEPFUN": "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",
+    "NVIDIA_API_KEY_DEEPSEEK": "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",
 }
 
 # ANSI Aesthetics
@@ -44,111 +37,113 @@ def print_header(text: str):
     print(f"{BOLD}{CYAN}{'='*80}{RESET}\n")
 
 def setup_kaggle():
-    """Clones the repository and sets up the environment on Kaggle."""
-    print_header("🚀 Starting LiveMirror Kaggle Setup")
+    print_header("🚀 Starting LiveMirror Full NVIDIA Setup")
     
-    # Check if we are in /kaggle/working
-    is_kaggle = os.path.exists("/kaggle/working")
-    base_path = Path("/kaggle/working") if is_kaggle else Path.cwd()
-    
-    # 1. Clone Repository if not present
-    repo_dir = base_path / "LiveMirror"
-    if not repo_dir.exists():
-        print(f"{BLUE}📥 Cloning LiveMirror repository...{RESET}")
-        subprocess.run(["git", "clone", "https://github.com/marketingsales-debug/LiveMirror.git"], cwd=str(base_path), check=True)
+    # 1. Setup Base Directory
+    curr = Path(os.getcwd())
+    if (curr / "backend").exists() and (curr / "scripts").exists():
+        base_dir = curr
+    elif (curr / "LiveMirror" / "backend").exists():
+        base_dir = curr / "LiveMirror"
     else:
-        print(f"{GREEN}📂 Repository already exists at {repo_dir}{RESET}")
-
-    os.chdir(str(repo_dir))
+        # Clone if not present
+        print(f"{BLUE}📥 Cloning repository...{RESET}")
+        subprocess.run(["git", "clone", "https://github.com/marketingsales-debug/LiveMirror.git"], check=True)
+        base_dir = curr / "LiveMirror"
+        
+    print(f"{GREEN}📍 Project Root: {base_dir}{RESET}")
+    os.chdir(str(base_dir))
     
-    # 2. Create .env file
-    print(f"{BLUE}🔧 Configuring environment variables...{RESET}")
+    # 2. Inject .env with all keys
+    print(f"{BLUE}🔐 Generating .env with all 11+ NVIDIA keys...{RESET}")
     with open(".env", "w") as f:
         for k, v in NVIDIA_REGISTRY.items():
             f.write(f"{k}={v}\n")
-        f.write("PYTHONPATH=.\n")
+        # Critical: Use absolute paths for PYTHONPATH to avoid module errors
+        f.write(f"PYTHONPATH={base_dir}:{base_dir}/backend\n")
         f.write("ENVIRONMENT=kaggle\n")
-    print(f"{GREEN}✅ .env file created successfully.{RESET}")
-
-    # 3. Install Python Dependencies
-    print(f"{BLUE}📦 Installing backend dependencies...{RESET}")
-    subprocess.run([sys.executable, "-m", "pip", "install", "-r", "backend/requirements.txt"], check=True)
-    subprocess.run([sys.executable, "-m", "pip", "install", "langchain-nvidia-ai-endpoints", "openai"], check=True)
-    print(f"{GREEN}✅ Python dependencies installed.{RESET}")
-
-    # 4. Build Frontend if it exists
-    f_dir = repo_dir / "frontend"
-    if f_dir.exists():
-        print(f"{BLUE}🎨 Setting up frontend...{RESET}")
-        try:
-            subprocess.run(["npm", "install", "--no-audit"], cwd=str(f_dir), check=True)
-            subprocess.run(["npm", "run", "build"], cwd=str(f_dir), check=True)
-            print(f"{GREEN}✅ Frontend built successfully.{RESET}")
-        except Exception as e:
-            print(f"{YELLOW}⚠️ Frontend build failed (skipping): {e}{RESET}")
+        # Default models for each tier
+        f.write("REASONING_MODEL=deepseek-ai/deepseek-v3.2\n")
+        f.write("BALANCED_MODEL=qwen/qwen3.5-122b-a10b\n")
+        f.write("FLASH_MODEL=stepfun-ai/step-3.5-flash\n")
+    print(f"{GREEN}✅ .env file created.{RESET}")
     
-    # 5. Create Data Directories
-    print(f"{BLUE}📂 Creating data directories...{RESET}")
-    os.makedirs(base_path / "data/memory", exist_ok=True)
-    os.makedirs(base_path / "data/evolution", exist_ok=True)
-    print(f"{GREEN}✅ Directories ready.{RESET}")
-
-    # 6. Start Backend in Background
-    print(f"{BLUE}🖥️ Starting backend server...{RESET}")
+    # 3. Install Requirements
+    print(f"{BLUE}📦 Installing backend requirements...{RESET}")
+    req_path = base_dir / "backend" / "requirements.txt"
+    if req_path.exists():
+        subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(req_path)], check=True)
+    subprocess.run([sys.executable, "-m", "pip", "install", "langchain-nvidia-ai-endpoints", "openai", "python-dotenv", "uvicorn"], check=True)
+    print(f"{GREEN}✅ Dependencies installed.{RESET}")
+    
+    # 4. Build Frontend Dashboard
+    print(f"{BLUE}🎨 Rebuilding frontend dashboard to apply hotfixes...{RESET}")
+    frontend_dir = base_dir / "frontend"
+    if frontend_dir.exists():
+        # Ensure node_modules exists or install
+        if not (frontend_dir / "node_modules").exists():
+            subprocess.run(["npm", "install", "--no-audit"], cwd=str(frontend_dir), check=True)
+        subprocess.run(["npm", "run", "build"], cwd=str(frontend_dir), check=True)
+        print(f"{GREEN}✅ Frontend rebuild completed.{RESET}")
+    
+    # 5. Initialize Persistence
+    print(f"{BLUE}📂 Initializing persistence layers...{RESET}")
+    os.makedirs("/kaggle/working/data/memory", exist_ok=True)
+    os.makedirs("/kaggle/working/data/evolution", exist_ok=True)
+    print(f"{GREEN}✅ Directories created.{RESET}")
+    
+    # 6. Start Autonomous Backend
+    print_header("🧠 Starting LiveMirror Backend")
     env = os.environ.copy()
-    env["PYTHONPATH"] = str(repo_dir)
+    # Ensure PYTHONPATH includes project root and backend for module resolution
+    env["PYTHONPATH"] = f"{base_dir}:{base_dir}/backend"
     for k, v in NVIDIA_REGISTRY.items():
         env[k] = v
+
+    # Launch in background and write to log
+    log_path = "/kaggle/working/backend.log"
+    backend_script = base_dir / "backend" / "run.py"
     
-    log_path = base_path / "backend.log"
-    with open(log_path, "w") as lf:
+    if not backend_script.exists():
+        print(f"{RED}❌ Error: {backend_script} not found!{RESET}")
+        return
+
+    with open(log_path, "w") as log_file:
         proc = subprocess.Popen(
-            [sys.executable, "backend/run.py"],
-            cwd=str(repo_dir),
+            [sys.executable, str(backend_script)],
+            cwd=str(base_dir),
             env=env,
-            stdout=lf,
+            stdout=log_file,
             stderr=subprocess.STDOUT,
             start_new_session=True
         )
         
-        # Health Check Loop
-        print(f"{BLUE}⏳ Waiting for backend to come online...{RESET}")
-        for i in range(30):
+        # 7. Health Check Verification
+        print(f"{BLUE}⏳ Waiting for health check (8000)...{RESET}")
+        ready = False
+        for i in range(45): # Increased wait time for Kaggle
             try:
                 with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=2) as r:
                     if r.status == 200:
-                        print(f"{BOLD}{GREEN}✅ SYSTEM ONLINE!{RESET}")
+                        print(f"{BOLD}{GREEN}✅ LiveMirror is ONLINE and fully integrated!{RESET}")
+                        ready = True
                         break
-            except Exception:
+            except:
+                if i % 5 == 0: print(f"   ...initializing engine ({i*2}s)")
                 time.sleep(2)
-                if i % 5 == 0:
-                    print(f"   Still waiting... ({i*2}s)")
-        else:
-            print(f"{BOLD}{RED}❌ FAILED TO START BACKEND{RESET}")
-            print(f"{YELLOW}Check logs at: {log_path}{RESET}")
+        
+        if not ready:
+            print(f"{BOLD}{RED}❌ FAILED to start. Last logs from backend.log:{RESET}")
+            if os.path.exists(log_path):
+                with open(log_path, "r") as f:
+                    print(f.read())
             proc.terminate()
             return
 
-    # 7. Expose with Localtunnel
-    print(f"{MAGENTA}{BOLD}🔗 Exposing server via Localtunnel...{RESET}")
-    print(f"{BOLD}{YELLOW}Note: You will need to provide your notebook IP to Localtunnel.{RESET}")
-    try:
+        # 8. Start Public Tunnel
+        print(f"\n{MAGENTA}{BOLD}🔗 ACCESS LINK BELOW:{RESET}")
+        print(f"{YELLOW}Wait for 'your url is' to appear. If you see 'Bad Gateway', refresh in 10s.{RESET}")
         subprocess.run(["npx", "localtunnel", "--port", "8000"])
-    except KeyboardInterrupt:
-        print(f"\n{BLUE}Exiting...{RESET}")
-        proc.terminate()
-
-def verify_apis():
-    """Optional: Run the original API verification tests once online."""
-    print_header("🔍 Running API Verification")
-    for k in NVIDIA_REGISTRY:
-        if k in os.environ or os.path.exists(".env"):
-            print(f"{GREEN}✓ {k} is configured.{RESET}")
 
 if __name__ == "__main__":
-    try:
-        setup_kaggle()
-    except Exception as e:
-        print(f"\n{BOLD}{RED}Critical failure during setup:{RESET}")
-        print(f"{RED}{str(e)}{RESET}")
-        sys.exit(1)
+    setup_kaggle()

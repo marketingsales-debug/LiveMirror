@@ -185,7 +185,7 @@ class DebateEngine:
 
         return DebateResult(bull_args, bear_args, neutral_count)
 
-    def to_prediction(
+    async def to_prediction(
         self,
         result: DebateResult,
         topic: str,
@@ -194,24 +194,32 @@ class DebateEngine:
         confidence_correction: float = 0.0,
     ) -> Prediction:
         """
-        Convert a debate result into a Prediction.
-
-        Args:
-            result:                Debate outcome
-            topic:                 Topic being predicted
-            state:                 Simulation state for metadata
-            narrative_stage:       Current narrative stage from analysis
-            confidence_correction: Calibration offset from CalibrationEngine
+        Convert a debate result into a Prediction using LLM for synthesis.
         """
         direction = result.direction
         confidence = min(0.95, max(0.05, result.confidence + confidence_correction))
 
-        if direction == "bull":
-            text = f"Positive trajectory expected for '{topic}' — bullish sentiment dominates with {result.consensus:.0%} consensus."
-        elif direction == "bear":
-            text = f"Negative trajectory expected for '{topic}' — bearish sentiment dominates with {result.consensus:.0%} consensus."
-        else:
-            text = f"Mixed signals for '{topic}' — agents are split with no clear consensus ({result.consensus:.0%})."
+        # Use LLM to synthesize the final prediction text
+        from ..shared.llm import LLMFactory
+        try:
+            llm = LLMFactory.get_model(tier="frontier", temperature=0.3)
+            prompt = (
+                f"Topic: {topic}\n"
+                f"Simulation Consensus: {result.consensus:.0%}\n"
+                f"Winner: {direction}\n"
+                f"Bull Strength: {result.bull_score:.2f}, Bear Strength: {result.bear_score:.2f}\n"
+                "Synthesize a 1-sentence expert prediction based on these debate metrics."
+            )
+            response = await llm.ainvoke(prompt)
+            text = response.content.strip()
+        except:
+            # Fallback
+            if direction == "bull":
+                text = f"Positive trajectory expected for '{topic}' — bullish sentiment dominates with {result.consensus:.0%} consensus."
+            elif direction == "bear":
+                text = f"Negative trajectory expected for '{topic}' — bearish sentiment dominates with {result.consensus:.0%} consensus."
+            else:
+                text = f"Mixed signals for '{topic}' — agents are split with no clear consensus ({result.consensus:.0%})."
 
         return Prediction(
             prediction_id=f"pred_{uuid.uuid4().hex[:12]}",

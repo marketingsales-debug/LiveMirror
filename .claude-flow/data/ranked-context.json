@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "computedAt": 1774802651645,
+  "computedAt": 1774877983552,
   "entries": [
     {
       "id": "mem-project_livemirror-livemirror---active-project",
       "content": "**Repo**: https://github.com/marketingsales-debug/LiveMirror\n**Local**: /Users/avipattan/LiveMirror\n**Stack**: Python FastAPI backend + Vue 3 frontend\n**Collab**: Claude (backend/simulation/ingestion) + Gemini (analysis/frontend/dashboard)\n\n### Current State (2026-03-28)\n- 89 tests passing\n- Claude completed: simulation API wiring, multi-agent debate system, ingest/predict API wiring\n- Gemini is working on: fixing pipeline.py engagement bug, connecting dashboard to real SSE data, handling new SS",
       "summary": "LiveMirror — Active Project",
       "category": "project_livemirror",
-      "confidence": 0.49,
+      "confidence": 0.48,
       "pageRank": 0.48051944112467226,
       "accessCount": 0,
       "words": [
@@ -72,11 +72,36 @@
       ]
     },
     {
+      "id": "insight-1774705900692-t72r",
+      "content": "File unknown was edited 96 times this session — likely a hot path worth monitoring.",
+      "summary": "Frequently edited: unknown (96x)",
+      "category": "insights",
+      "confidence": 0.485,
+      "pageRank": 0.25974027943766376,
+      "accessCount": 0,
+      "words": [
+        "file",
+        "unknown",
+        "edited",
+        "times",
+        "session",
+        "likely",
+        "hot",
+        "path",
+        "worth",
+        "monitoring",
+        "frequently",
+        "edited",
+        "unknown",
+        "96x"
+      ]
+    },
+    {
       "id": "mem-project_livemirror----",
       "content": "name: LiveMirror Project Context\ndescription: Real-time prediction engine — Claude/Gemini collab, current state and what each AI is working on\ntype: project\n---",
       "summary": "---",
       "category": "project_livemirror",
-      "confidence": 0.49,
+      "confidence": 0.48,
       "pageRank": 0.25974027943766376,
       "accessCount": 0,
       "words": [
@@ -99,31 +124,6 @@
         "project",
         "---",
         "---"
-      ]
-    },
-    {
-      "id": "insight-1774705900692-t72r",
-      "content": "File unknown was edited 96 times this session — likely a hot path worth monitoring.",
-      "summary": "Frequently edited: unknown (96x)",
-      "category": "insights",
-      "confidence": 0.49,
-      "pageRank": 0.25974027943766376,
-      "accessCount": 0,
-      "words": [
-        "file",
-        "unknown",
-        "edited",
-        "times",
-        "session",
-        "likely",
-        "hot",
-        "path",
-        "worth",
-        "monitoring",
-        "frequently",
-        "edited",
-        "unknown",
-        "96x"
       ]
     }
   ]

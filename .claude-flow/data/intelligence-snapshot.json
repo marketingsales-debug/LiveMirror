@@ -154,5 +154,44 @@
         "accessCount": 0
       }
     ]
+  },
+  {
+    "timestamp": 1774877983552,
+    "nodes": 3,
+    "edges": 1,
+    "pageRankSum": 0.9999999999999998,
+    "confidences": [
+      0.48,
+      0.48,
+      0.485
+    ],
+    "accessCounts": [
+      0,
+      0,
+      0
+    ],
+    "topPatterns": [
+      {
+        "id": "mem-project_livemirror-livemirror---active-project",
+        "summary": "LiveMirror — Active Project",
+        "confidence": 0.48,
+        "pageRank": 0.48051944112467226,
+        "accessCount": 0
+      },
+      {
+        "id": "insight-1774705900692-t72r",
+        "summary": "Frequently edited: unknown (96x)",
+        "confidence": 0.485,
+        "pageRank": 0.25974027943766376,
+        "accessCount": 0
+      },
+      {
+        "id": "mem-project_livemirror----",
+        "summary": "---",
+        "confidence": 0.48,
+        "pageRank": 0.25974027943766376,
+        "accessCount": 0
+      }
+    ]
   }
 ]

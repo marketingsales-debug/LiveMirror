@@ -1,26 +1,26 @@
 {
   "version": 1,
-  "updatedAt": 1774802651645,
+  "updatedAt": 1774877983551,
   "nodeCount": 3,
   "nodes": {
     "mem-project_livemirror----": {
       "id": "mem-project_livemirror----",
       "category": "project_livemirror",
-      "confidence": 0.49,
+      "confidence": 0.48,
       "accessCount": 0,
       "createdAt": 1774685687387
     },
     "mem-project_livemirror-livemirror---active-project": {
       "id": "mem-project_livemirror-livemirror---active-project",
       "category": "project_livemirror",
-      "confidence": 0.49,
+      "confidence": 0.48,
       "accessCount": 0,
       "createdAt": 1774685687387
     },
     "insight-1774705900692-t72r": {
       "id": "insight-1774705900692-t72r",
       "category": "insights",
-      "confidence": 0.49,
+      "confidence": 0.485,
       "accessCount": 0,
       "createdAt": 1774705900692
     }

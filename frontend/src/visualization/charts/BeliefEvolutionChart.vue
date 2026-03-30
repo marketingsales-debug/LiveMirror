@@ -73,7 +73,7 @@ const handleSimulationRound = (event: Event) => {
 
 const setupSSE = () => {
   if (eventSource) eventSource.close();
-  eventSource = new EventSource(`${API_BASE_URL}/api/events`);
+  eventSource = new EventSource(`${API_BASE_URL}/api/stream/events`);
   eventSource.addEventListener('simulation_round', handleSimulationRound as EventListener);
 
   eventSource.onopen = () => {
