@@ -94,6 +94,8 @@ async def start_goal(request: GoalRequest, _auth: str = Depends(require_auth)):
             max_iterations=request.max_iterations,
         )
         return GoalResponse(thoughts=thoughts, status="completed")
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=500, detail="Agent Board failed.")
 
@@ -104,6 +106,8 @@ async def list_workspace_files(_auth: str = Depends(require_auth)):
     try:
         loop = AgentLoop(PROJECT_ROOT)
         return {"files": loop.files.list_files()}
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to list files.")
 
@@ -115,6 +119,8 @@ async def run_command(request: ExecRequest, _auth: str = Depends(require_auth)):
         _validate_exec_command(request.command)
         loop = AgentLoop(PROJECT_ROOT)
         return loop.exec.run_command(request.command)
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=500, detail="Command execution failed.")
 
