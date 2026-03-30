@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import ContagionGraph from '@/visualization/charts/ContagionGraph.vue';
 import TrustNetworkGraph from '@/visualization/charts/TrustNetworkGraph.vue';
 import BeliefEvolutionChart from '@/visualization/charts/BeliefEvolutionChart.vue';
+import NarrativeGalaxy from '@/visualization/NarrativeGalaxy.vue';
 import DebatePanel from '../components/DebatePanel.vue';
 import PlatformHealth from '../components/PlatformHealth.vue';
 import PredictionHistory from '../components/PredictionHistory.vue';
@@ -253,13 +254,7 @@ onUnmounted(() => {
       <!-- Simulation Row -->
       <div class="simulation-grid">
         <section class="sim-panel glass-panel">
-          <header>
-            <h3>Trust Network</h3>
-            <p>D3 force physics edge topology</p>
-          </header>
-          <div class="viz-wrapper">
-            <TrustNetworkGraph :simulationId="activeSimulationId" :round="currentRound" />
-          </div>
+          <NarrativeGalaxy />
         </section>
         <section class="sim-panel glass-panel">
           <header>
