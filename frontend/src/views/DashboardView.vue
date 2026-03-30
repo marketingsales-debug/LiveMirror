@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import ContagionGraph from '@/visualization/charts/ContagionGraph.vue';
-import TrustNetworkGraph from '@/visualization/charts/TrustNetworkGraph.vue';
 import BeliefEvolutionChart from '@/visualization/charts/BeliefEvolutionChart.vue';
 import NarrativeGalaxy from '@/visualization/NarrativeGalaxy.vue';
 import DebatePanel from '../components/DebatePanel.vue';
@@ -24,15 +23,57 @@ const currentRound = ref(0);
 const totalRounds = ref(0);
 const roundActions = ref(0);
 
+type Direction = 'BULL' | 'BEAR' | 'NEUTRAL';
+
+interface FusionSignal {
+  id: string;
+  direction: Direction | string;
+  confidence: number;
+  modalities: Record<string, unknown>;
+}
+
+interface AudienceConsensus {
+  direction: number;
+  confidence: number;
+}
+
+interface TemporalDynamics {
+  momentum: number;
+  velocity: number;
+  acceleration: number;
+}
+
+interface PredictionDetails {
+  text: string;
+  confidence_level: string;
+  confidence: number;
+  consensus: number;
+  bull_score: number;
+  bear_score: number;
+}
+
+interface DebateDetails {
+  direction: Direction | string;
+  bull_count: number;
+  bear_count: number;
+}
+
+interface PredictionReport {
+  status: string;
+  topic: string;
+  prediction: PredictionDetails;
+  debate: DebateDetails;
+}
+
 // Fusion State
-const fusionSignals = ref<any[]>([]);
-const audienceConsensus = ref<Record<string, any>>({
+const fusionSignals = ref<FusionSignal[]>([]);
+const audienceConsensus = ref<Record<string, AudienceConsensus>>({
   crypto_twitter: { direction: 0, confidence: 0 },
   mainstream_media: { direction: 0, confidence: 0 },
   retail_investors: { direction: 0, confidence: 0 },
   tech_community: { direction: 0, confidence: 0 }
 });
-const temporalDynamics = ref({
+const temporalDynamics = ref<TemporalDynamics>({
   momentum: 0,
   velocity: 0,
   acceleration: 0
@@ -48,7 +89,7 @@ interface Fingerprint {
 }
 
 const activeFingerprints = ref<Fingerprint[]>([]);
-const activePrediction = ref<Record<string, unknown> | null>(null);
+const activePrediction = ref<PredictionReport | null>(null);
 let es: EventSource | null = null;
 
 
@@ -147,7 +188,8 @@ onMounted(() => {
       // Fetch full debate report
       const res = await fetch(`http://localhost:5001/api/predict/report/${data.prediction_id}`);
       if (res.ok) {
-        activePrediction.value = await res.json();
+        const report: PredictionReport = await res.json();
+        activePrediction.value = report;
       }
     } catch(err) { console.error('Failed to load prediction report', err); }
   }) as EventListener);
@@ -182,7 +224,7 @@ onMounted(() => {
         id: data.signal_id,
         direction: data.direction,
         confidence: data.confidence,
-        modalities: data.modalities
+        modalities: data.modalities ?? {}
       });
       if (fusionSignals.value.length > 5) fusionSignals.value.pop();
     } catch { /* ignore */ }
@@ -193,8 +235,8 @@ onMounted(() => {
       const msgEvent = e as MessageEvent;
       const data = JSON.parse(msgEvent.data);
       audienceConsensus.value[data.segment] = {
-        direction: data.direction,
-        confidence: data.confidence
+        direction: Number(data.direction) || 0,
+        confidence: Number(data.confidence) || 0
       };
     } catch { /* ignore */ }
   }) as EventListener);

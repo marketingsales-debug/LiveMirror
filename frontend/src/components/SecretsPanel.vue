@@ -26,19 +26,34 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue';
 
-const secrets = ref([]);
+interface SecretItem {
+  name: string;
+  status: string;
+  updated_at: string;
+}
+
+interface SecretListResponse {
+  secrets: SecretItem[];
+}
+
+interface NewSecret {
+  name: string;
+  value: string;
+}
+
+const secrets = ref<SecretItem[]>([]);
 const loading = ref(false);
-const newSecret = ref({ name: '', value: '' });
+const newSecret = ref<NewSecret>({ name: '', value: '' });
 
 const fetchSecrets = async () => {
-  loading.ref = true;
+  loading.value = true;
   try {
     const response = await fetch('/api/self-mirror/secrets');
-    const data = await response.json();
-    secrets.value = data.secrets;
+    const data: SecretListResponse = await response.json();
+    secrets.value = data.secrets ?? [];
   } catch (err) {
     console.error('Failed to fetch secrets', err);
   } finally {
@@ -58,25 +73,25 @@ const saveSecret = async () => {
     newSecret.value = { name: '', value: '' };
     await fetchSecrets();
   } catch (err) {
+    console.error('Failed to save secret', err);
     alert('Failed to save secret');
   } finally {
     loading.value = false;
   }
 };
 
-const deleteSecret = async (name) => {
+const deleteSecret = async (name: string) => {
   if (!confirm(`Are you sure you want to delete ${name}?`)) return;
   try {
     await fetch(`/api/self-mirror/secrets/${name}`, { method: 'DELETE' });
     await fetchSecrets();
   } catch (err) {
+    console.error('Failed to delete secret', err);
     alert('Failed to delete secret');
   }
 };
 
-const formatDate = (iso) => {
-  return new Date(iso).toLocaleString();
-};
+const formatDate = (iso: string) => new Date(iso).toLocaleString();
 
 onMounted(fetchSecrets);
 </script>

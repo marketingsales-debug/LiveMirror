@@ -1,13 +1,52 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+type Direction = 'BULL' | 'BEAR' | 'NEUTRAL';
+
+interface PredictionDetails {
+  text: string;
+  confidence_level: string;
+  confidence: number;
+  consensus: number;
+  bull_score: number;
+  bear_score: number;
+}
+
+interface DebateDetails {
+  direction: Direction;
+  bull_count: number;
+  bear_count: number;
+}
+
+interface PredictionReport {
+  status: string;
+  topic: string;
+  prediction: PredictionDetails;
+  debate: DebateDetails;
+}
+
+const emptyPrediction: PredictionDetails = {
+  text: '',
+  confidence_level: '',
+  confidence: 0,
+  consensus: 0,
+  bull_score: 0,
+  bear_score: 0
+};
+
+const emptyDebate: DebateDetails = {
+  direction: 'NEUTRAL',
+  bull_count: 0,
+  bear_count: 0
+};
+
 const props = defineProps<{
-  report: any | null;
+  report: PredictionReport | null;
 }>();
 
-const hasData = computed(() => props.report && props.report.status === 'completed');
-const p = computed(() => props.report?.prediction || {});
-const d = computed(() => props.report?.debate || {});
+const hasData = computed(() => props.report?.status === 'completed');
+const p = computed<PredictionDetails>(() => props.report?.prediction ?? emptyPrediction);
+const d = computed<DebateDetails>(() => props.report?.debate ?? emptyDebate);
 
 const bullPct = computed(() => {
   if (!hasData.value) return 50;

@@ -129,7 +129,7 @@ class BacktestHarness:
     def _ensure_pipeline(self):
         """Lazy-load pipeline if not provided."""
         if self.pipeline is None:
-            from src.fusion.pipeline import FusionPipeline
+            from ..fusion.pipeline import FusionPipeline
             self.pipeline = FusionPipeline()
     
     def load_historical_signals(self, path: str) -> int:

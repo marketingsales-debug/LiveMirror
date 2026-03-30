@@ -1,30 +1,49 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 
-const history = ref<any[]>([]);
+type Direction = 'BULL' | 'BEAR' | 'NEUTRAL' | 'PENDING';
+
+interface PredictionHistoryItem {
+  prediction_id: string;
+  topic: string;
+  confidence?: number;
+  direction?: Direction;
+  status?: string;
+}
+
+interface PredictionHistoryResponse {
+  predictions?: PredictionHistoryItem[];
+}
+
+const history = ref<PredictionHistoryItem[]>([]);
 
 const fetchHistory = async () => {
   try {
     const res = await fetch('http://localhost:5001/api/predict/history');
     if (res.ok) {
-      const data = await res.json();
-      history.value = data.predictions || [];
+      const data: PredictionHistoryResponse = await res.json();
+      history.value = data.predictions ?? [];
     }
-  } catch(e) { console.error('Failed to fetch prediction history', e); }
+  } catch (e) {
+    console.error('Failed to fetch prediction history', e);
+  }
 };
 
-const validateOutcome = async (predId: string, outcome: string, accuracy: number) => {
+const validateOutcome = async (predId: string, outcome: Direction | undefined, accuracy: number) => {
+  const resolvedOutcome: Direction = outcome ?? 'PENDING';
   try {
     const res = await fetch('http://localhost:5001/api/predict/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prediction_id: predId, real_outcome: outcome, accuracy })
+      body: JSON.stringify({ prediction_id: predId, real_outcome: resolvedOutcome, accuracy })
     });
     if (res.ok) {
       alert('Validation submitted. Learning Loop updated.');
       fetchHistory();
     }
-  } catch(e) { console.error('Failed to submit validation', e); }
+  } catch (e) {
+    console.error('Failed to submit validation', e);
+  }
 };
 
 // Optionally refresh periodically or refresh when a new prediction completes

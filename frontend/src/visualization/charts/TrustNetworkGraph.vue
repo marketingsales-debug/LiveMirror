@@ -9,8 +9,19 @@ const props = defineProps<{
 
 const svgContainer = ref<HTMLElement | null>(null);
 
-const nodes = ref<any[]>([]);
-const links = ref<any[]>([]);
+interface TrustNode extends d3.SimulationNodeDatum {
+  id: string;
+  stance?: string;
+}
+
+interface TrustLink extends d3.SimulationLinkDatum<TrustNode> {
+  source: string | TrustNode;
+  target: string | TrustNode;
+  trust?: number;
+}
+
+const nodes = ref<TrustNode[]>([]);
+const links = ref<TrustLink[]>([]);
 let eventSource: EventSource | null = null;
 
 const setupSSE = () => {
@@ -47,11 +58,11 @@ const drawGraph = () => {
     .attr('width', width)
     .attr('height', height);
 
-  const graphNodes = JSON.parse(JSON.stringify(nodes.value));
-  const graphLinks = JSON.parse(JSON.stringify(links.value));
+  const graphNodes = JSON.parse(JSON.stringify(nodes.value)) as TrustNode[];
+  const graphLinks = JSON.parse(JSON.stringify(links.value)) as TrustLink[];
 
-  const simulation = d3.forceSimulation(graphNodes as any)
-    .force('link', d3.forceLink(graphLinks).id((d: any) => d.id).distance(100))
+  const simulation = d3.forceSimulation(graphNodes)
+    .force('link', d3.forceLink<TrustNode, TrustLink>(graphLinks).id((d) => d.id).distance(100))
     .force('charge', d3.forceManyBody().strength(-300))
     .force('center', d3.forceCenter(width / 2, height / 2));
 
@@ -60,41 +71,44 @@ const drawGraph = () => {
     .data(graphLinks)
     .enter().append('line')
     .attr('stroke', 'rgba(102, 252, 241, 0.3)')
-    .attr('stroke-width', (d: any) => Math.max(1, (d.trust ?? 0) * 5)); 
+    .attr('stroke-width', (d) => Math.max(1, (d.trust ?? 0) * 5)); 
 
   const node = svg.append('g')
     .selectAll('circle')
     .data(graphNodes)
     .enter().append('circle')
     .attr('r', 12)
-    .attr('fill', (d: any) => {
+    .attr('fill', (d) => {
       // Node color = stance
       if (d.stance === 'supportive') return '#66fcf1'; // Green/Cyan
       if (d.stance === 'opposing') return '#ff4d4d'; // Red
       return '#888888'; // Neutral
     })
     .call(d3.drag()
-      .on('start', (e: any, d: any) => {
-        if (!e.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x; d.fy = d.y;
+      .on('start', (event: d3.D3DragEvent<SVGCircleElement, TrustNode, TrustNode>, d) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
       })
-      .on('drag', (e: any, d: any) => {
-        d.fx = e.x; d.fy = e.y;
+      .on('drag', (event: d3.D3DragEvent<SVGCircleElement, TrustNode, TrustNode>, d) => {
+        d.fx = event.x;
+        d.fy = event.y;
       })
-      .on('end', (e: any, d: any) => {
-        if (!e.active) simulation.alphaTarget(0);
-        d.fx = null; d.fy = null;
-      }) as any);
+      .on('end', (event: d3.D3DragEvent<SVGCircleElement, TrustNode, TrustNode>, d) => {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }));
 
   simulation.on('tick', () => {
     link
-      .attr('x1', (d: any) => d.source.x)
-      .attr('y1', (d: any) => d.source.y)
-      .attr('x2', (d: any) => d.target.x)
-      .attr('y2', (d: any) => d.target.y);
+      .attr('x1', (d) => (d.source as TrustNode).x ?? 0)
+      .attr('y1', (d) => (d.source as TrustNode).y ?? 0)
+      .attr('x2', (d) => (d.target as TrustNode).x ?? 0)
+      .attr('y2', (d) => (d.target as TrustNode).y ?? 0);
     node
-      .attr('cx', (d: any) => d.x)
-      .attr('cy', (d: any) => d.y);
+      .attr('cx', (d) => d.x ?? 0)
+      .attr('cy', (d) => d.y ?? 0);
   });
 };
 

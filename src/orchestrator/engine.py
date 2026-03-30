@@ -230,8 +230,8 @@ class LiveMirrorEngine:
             confidence_correction=correction,
         )
 
-        # --- Stage 6: Register for learning ---
-        self.learning.register_prediction(prediction)
+        # --- Stage 6: Register for learning (with signals for fine-tuning) ---
+        self.learning.register_prediction(prediction, signals=scored_signals)
 
         # Emit prediction SSE
         if emit_sse:
