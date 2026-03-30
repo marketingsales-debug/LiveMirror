@@ -85,9 +85,33 @@ class FileService:
         """List all files in a directory."""
         full_path = self._safe_path(directory)
         files = []
-        for root, _, filenames in os.walk(full_path):
+        base_path_str = str(self.base_path)
+        for root, dirnames, filenames in os.walk(full_path, followlinks=False):
+            root_path = Path(root)
+            safe_dirnames = []
+            for dirname in dirnames:
+                candidate = root_path / dirname
+                if candidate.is_symlink():
+                    continue
+                try:
+                    resolved = candidate.resolve()
+                except FileNotFoundError:
+                    continue
+                if not str(resolved).startswith(base_path_str):
+                    continue
+                safe_dirnames.append(dirname)
+            dirnames[:] = safe_dirnames
             for f in filenames:
-                rel = os.path.relpath(os.path.join(root, f), self.base_path)
+                file_path = root_path / f
+                if file_path.is_symlink():
+                    continue
+                try:
+                    resolved = file_path.resolve()
+                except FileNotFoundError:
+                    continue
+                if not str(resolved).startswith(base_path_str):
+                    continue
+                rel = os.path.relpath(str(resolved), self.base_path)
                 skip = (".git", "__pycache__", "node_modules", ".venv", ".pytest_cache")
                 if not any(s in rel for s in skip):
                     files.append(rel)

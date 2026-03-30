@@ -126,9 +126,9 @@ class KnowledgeGraph:
             # Upsert each entity
             entity_ids = []
             for name, etype in entities:
-                eid = self._upsert_entity(name, etype, signal.platform.value)
+                eid, created = self._upsert_entity(name, etype, signal.platform.value)
                 entity_ids.append(eid)
-                if eid not in self._entities or self._entities[eid].mention_count == 1:
+                if created:
                     stats["entities_created"] += 1
                 else:
                     stats["entities_updated"] += 1
@@ -143,7 +143,12 @@ class KnowledgeGraph:
                         stats["edges_updated"] += 1
 
             # Link entities to the query topic
-            topic_eid = self._upsert_entity(query, EntityType.TOPIC, signal.platform.value)
+            topic_eid, topic_created = self._upsert_entity(query, EntityType.TOPIC, signal.platform.value)
+            if topic_created:
+                stats["entities_created"] += 1
+            else:
+                stats["entities_updated"] += 1
+                
             for eid in entity_ids:
                 if eid != topic_eid:
                     self._upsert_edge(eid, topic_eid, EdgeType.MENTIONS)
@@ -371,8 +376,8 @@ class KnowledgeGraph:
 
     def _upsert_entity(
         self, name: str, entity_type: EntityType, platform: str
-    ) -> str:
-        """Create or update an entity. Returns entity_id."""
+    ) -> Tuple[str, bool]:
+        """Create or update an entity. Returns (entity_id, created)."""
         name_lower = name.lower()
         existing_id = self._entity_by_name.get(name_lower)
 
@@ -381,7 +386,7 @@ class KnowledgeGraph:
             entity.mention_count += 1
             entity.last_seen = datetime.now()
             entity.platforms_seen.add(platform)
-            return existing_id
+            return existing_id, False
 
         # Create new
         eid = f"e_{len(self._entities)}"
@@ -394,7 +399,7 @@ class KnowledgeGraph:
         )
         self._entities[eid] = entity
         self._entity_by_name[name_lower] = eid
-        return eid
+        return eid, True
 
     def _upsert_edge(
         self, source_id: str, target_id: str, edge_type: EdgeType

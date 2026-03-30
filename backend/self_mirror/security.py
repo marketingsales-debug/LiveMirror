@@ -12,15 +12,16 @@ from fastapi import HTTPException, Header
 
 # --- API Key Authentication ---
 
-SELFMIRROR_API_KEY = os.getenv("SELFMIRROR_API_KEY", "")
+def _get_api_key() -> str:
+    return os.getenv("SELFMIRROR_API_KEY", "")
 
 
 async def require_auth(x_api_key: Optional[str] = Header(None)) -> str:
     """FastAPI dependency — rejects requests without valid API key."""
-    if not SELFMIRROR_API_KEY:
-        # No key configured = dev mode, allow all
-        return "dev-mode"
-    if x_api_key != SELFMIRROR_API_KEY:
+    api_key = _get_api_key()
+    if not api_key:
+        raise HTTPException(status_code=500, detail="SELFMIRROR_API_KEY is not configured.")
+    if x_api_key != api_key:
         raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key header.")
     return x_api_key
 
@@ -112,6 +113,8 @@ BLOCKED_PATTERNS = [
     r"\bwget\b.*\|\s*(?:bash|sh|zsh)",
     r"\bpip\s+install\b",
     r"\bnpm\s+install\b",
+    r"\$\(",
+    r"`",
     r"\bsudo\b",
     r"\bchmod\b",
     r"\bchown\b",
@@ -159,8 +162,8 @@ def validate_command(command: str) -> Dict[str, Any]:
     # 2. Tokenize and validate base command + arguments
     try:
         tokens = shlex.split(cmd_stripped)
-    except ValueError as e:
-        return {"allowed": False, "reason": f"Shell parsing error: {str(e)}"}
+    except ValueError:
+        return {"allowed": False, "reason": "Shell parsing error."}
 
     if validate_command_tokens(tokens):
         return {"allowed": True}

@@ -45,7 +45,7 @@ async def test_run_command_success():
         
         with patch("backend.self_mirror.main.require_auth", return_value="test-key"):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                response = await ac.post("/exec", params={"command": "echo hello"})
+                response = await ac.post("/exec", json={"command": "echo hello"})
                 
     assert response.status_code == 200
     assert response.json()["stdout"] == "hello"
@@ -86,4 +86,4 @@ async def test_api_error_handling():
                 response = await ac.get("/files")
                 
     assert response.status_code == 500
-    assert "System crash" in response.json()["detail"]
+    assert response.json()["detail"] == "Failed to list files."
