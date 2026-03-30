@@ -20,9 +20,10 @@ class PolymarketIngester(BaseIngester):
 
     platform = Platform.POLYMARKET
     BASE_URL = "https://gamma-api.polymarket.com"
+    CLOB_URL = "https://clob.polymarket.com"
 
     def __init__(self):
-        self._client = httpx.AsyncClient(timeout=30.0)
+        self._client = httpx.AsyncClient(timeout=15.0)
 
     async def search(
         self,
@@ -32,20 +33,7 @@ class PolymarketIngester(BaseIngester):
     ) -> List[RawSignal]:
         signals: List[RawSignal] = []
         try:
-            resp = await self._client.get(
-                f"{self.BASE_URL}/markets",
-                params={
-                    "search": query,
-                    "limit": min(max_results, 50),
-                    "active": "true",
-                },
-            )
-            resp.raise_for_status()
-            markets = resp.json()
-
-            if not isinstance(markets, list):
-                markets = markets.get("results", [])
-
+            markets = await self._fetch_markets(query, max_results)
             for market in markets:
                 # Extract outcome probabilities
                 outcomes = market.get("outcomes", [])
@@ -94,9 +82,52 @@ class PolymarketIngester(BaseIngester):
     async def health_check(self) -> bool:
         try:
             resp = await self._client.get(
+                f"{self.CLOB_URL}/markets",
+                params={"limit": 1, "active": "true", "withOrders": "false"},
+            )
+            if resp.status_code == 200:
+                return True
+            resp_gamma = await self._client.get(
                 f"{self.BASE_URL}/markets",
                 params={"limit": 1, "active": "true"},
             )
-            return resp.status_code == 200
+            return resp_gamma.status_code == 200
         except Exception:
             return False
+
+    async def _fetch_markets(self, query: str, max_results: int):
+        params = {
+            "limit": min(max_results, 50),
+            "active": "true",
+            "withOrders": "false",
+        }
+        if query:
+            params["search"] = query
+
+        # Try CLOB first (faster), fall back to gamma API
+        try:
+            resp = await self._client.get(f"{self.CLOB_URL}/markets", params=params)
+            resp.raise_for_status()
+            data = resp.json()
+            if isinstance(data, list):
+                return data
+            if isinstance(data, dict):
+                results = data.get("markets") or data.get("results")
+                if isinstance(results, list):
+                    return results
+        except Exception:
+            pass
+
+        resp = await self._client.get(
+            f"{self.BASE_URL}/markets",
+            params={
+                "search": query,
+                "limit": min(max_results, 50),
+                "active": "true",
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, list):
+            return data
+        return data.get("results", []) if isinstance(data, dict) else []

@@ -16,6 +16,17 @@ from collections import defaultdict
 
 from ..shared.types import RawSignal, ScoredSignal
 
+try:
+    from ..ranking.candidate_model import CandidateGenerator
+    from ..ranking.ranking_model import RankingModel
+    from ..ranking.features import FeatureBuilder
+    from ..ranking.embeddings import EmbeddingService
+except Exception:
+    CandidateGenerator = None  # type: ignore
+    RankingModel = None  # type: ignore
+    FeatureBuilder = None  # type: ignore
+    EmbeddingService = None  # type: ignore
+
 
 class SignalScorer:
     """Score and rank signals from multiple platforms."""
@@ -27,6 +38,9 @@ class SignalScorer:
         recency_weight: float = 0.20,
         cross_platform_weight: float = 0.20,
         use_embeddings: bool = True,
+        use_two_stage: bool = False,
+        candidate_top_k: int = 200,
+        ranking_top_n: int = 50,
     ):
         self.relevance_weight = relevance_weight
         self.engagement_weight = engagement_weight
@@ -42,6 +56,22 @@ class SignalScorer:
             except Exception:
                 pass
 
+        # Two-stage ranking (optional, off by default)
+        self._two_stage = bool(
+            use_two_stage and CandidateGenerator and RankingModel and FeatureBuilder
+        )
+        self._feature_builder = FeatureBuilder() if self._two_stage else None
+        self._candidate_model = (
+            CandidateGenerator(
+                self._feature_builder,  # type: ignore[arg-type]
+                embedder=EmbeddingService(),
+                max_candidates=candidate_top_k,
+            )
+            if self._two_stage
+            else None
+        )
+        self._ranking_model = RankingModel(top_n=ranking_top_n) if self._two_stage else None
+
     def score_all(
         self,
         signals: List[RawSignal],
@@ -54,7 +84,38 @@ class SignalScorer:
 
         # Detect cross-platform topics
         cross_platform_map = self._detect_cross_platform(unique_signals)
+        cross_platform_by_id: Dict[str, float] = {
+            s.id: cross_platform_map.get(self._content_key(s.content), 1.0)
+            for s in unique_signals
+        }
 
+        # Two-stage path (optional)
+        if self._two_stage and self._feature_builder and self._candidate_model and self._ranking_model:
+            features = self._feature_builder.build_batch(unique_signals, cross_platform_by_id)
+            candidates = self._candidate_model.rank(unique_signals, query, features)
+            ranked = self._ranking_model.rank(candidates, features)
+
+            scored_two_stage: List[ScoredSignal] = []
+            for signal, score in ranked:
+                f = features.get(signal.id)
+                if not f:
+                    continue
+                cross_score = min(1.0, (f.cross_platform_count - 1) / 3)
+                s = ScoredSignal(
+                    signal=signal,
+                    relevance_score=score,  # store ranking score for transparency
+                    engagement_velocity=min(1.0, f.engagement_velocity / 200.0),
+                    recency_score=f.recency_score,
+                    cross_platform_score=cross_score,
+                    composite_score=score,
+                )
+                scored_two_stage.append(s)
+
+            if scored_two_stage:
+                scored_two_stage.sort(key=lambda s: s.composite_score, reverse=True)
+                return scored_two_stage
+
+        # Fallback to legacy scoring
         # Compute max engagement for normalization
         max_engagement = max(
             (s.engagement_score() for s in unique_signals),
