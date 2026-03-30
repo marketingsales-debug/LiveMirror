@@ -163,8 +163,8 @@ class HostExecutionService(ExecutionService):
             }
         except subprocess.TimeoutExpired:
             return {"success": False, "stdout": "", "stderr": f"Command timed out ({self.timeout}s limit).", "exit_code": -1}
-        except Exception as e:
-            return {"success": False, "stdout": "", "stderr": str(e), "exit_code": -1}
+        except Exception:
+            return {"success": False, "stdout": "", "stderr": "Command execution failed.", "exit_code": -1}
 
 
 class ContainerExecutionService(ExecutionService):
@@ -220,8 +220,8 @@ class ContainerExecutionService(ExecutionService):
             }
         except subprocess.TimeoutExpired:
             return {"success": False, "stdout": "", "stderr": "Docker command timed out.", "exit_code": -1}
-        except Exception as e:
-            return {"success": False, "stdout": "", "stderr": f"Docker error: {str(e)}", "exit_code": -1}
+        except Exception:
+            return {"success": False, "stdout": "", "stderr": "Docker command failed.", "exit_code": -1}
 
 
 def get_execution_service(cwd: str, timeout: int = 120) -> ExecutionService:

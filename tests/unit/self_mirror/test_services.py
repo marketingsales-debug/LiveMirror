@@ -119,6 +119,21 @@ class TestFileService:
         assert all("__pycache__" not in f for f in files)
         assert all("node_modules" not in f for f in files)
 
+    def test_list_files_skips_symlinked_file(self, fs, tmp_path):
+        (tmp_path / "real.txt").write_text("x")
+        (tmp_path / "linked.txt").symlink_to(tmp_path / "real.txt")
+        files = fs.list_files()
+        assert "linked.txt" not in files
+
+    def test_list_files_skips_symlinked_dir(self, fs, tmp_path):
+        real_dir = tmp_path / "real"
+        real_dir.mkdir()
+        (real_dir / "inside.txt").write_text("x")
+        (tmp_path / "linked").symlink_to(real_dir, target_is_directory=True)
+        files = fs.list_files()
+        assert os.path.join("real", "inside.txt") in files
+        assert all("linked" not in f for f in files)
+
 
 class TestFileServiceSecurity:
     """Security-specific tests for FileService."""

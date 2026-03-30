@@ -5,6 +5,7 @@ Wires the frontend to the LangGraph Research Board and Secret Manager.
 
 import os
 import re
+from pathlib import Path
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field, conint, conlist, constr
 from typing import List
@@ -24,6 +25,34 @@ MAX_COMMAND_LENGTH = 2048
 MAX_SECRET_NAME_LENGTH = 128
 MAX_SECRET_VALUE_LENGTH = 4096
 SECRET_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+EXEC_BLOCKED_PATTERN = re.compile(r"\$\(|`")
+
+
+def _ensure_no_null(value: str, label: str) -> None:
+    if "\x00" in value:
+        raise HTTPException(status_code=422, detail=f"Invalid {label}.")
+
+
+def _validate_context_files(context_files: List[str]) -> None:
+    for path in context_files:
+        _ensure_no_null(path, "context file path")
+        path_obj = Path(path)
+        if path_obj.is_absolute() or ".." in path_obj.parts:
+            raise HTTPException(status_code=422, detail="Invalid context file path.")
+
+
+def _validate_goal(goal: str) -> None:
+    _ensure_no_null(goal, "goal")
+
+
+def _validate_exec_command(command: str) -> None:
+    _ensure_no_null(command, "command")
+    if EXEC_BLOCKED_PATTERN.search(command):
+        raise HTTPException(status_code=422, detail="Command contains forbidden shell substitution.")
+
+
+def _validate_secret_value(value: str) -> None:
+    _ensure_no_null(value, "secret value")
 
 class GoalRequest(BaseModel):
     goal: constr(strip_whitespace=True, min_length=1, max_length=MAX_GOAL_LENGTH)
@@ -45,7 +74,7 @@ class SecretRequest(BaseModel):
         max_length=MAX_SECRET_NAME_LENGTH,
         pattern=SECRET_NAME_PATTERN.pattern,
     )
-    value: constr(min_length=1, max_length=MAX_SECRET_VALUE_LENGTH)
+    value: constr(strip_whitespace=True, min_length=1, max_length=MAX_SECRET_VALUE_LENGTH)
 
 
 class ExecRequest(BaseModel):
@@ -56,6 +85,8 @@ class ExecRequest(BaseModel):
 async def start_goal(request: GoalRequest, _auth: str = Depends(require_auth)):
     """Start the LangGraph Research Board for a goal (auth required)."""
     try:
+        _validate_goal(request.goal)
+        _validate_context_files(request.context_files)
         loop = AgentLoop(PROJECT_ROOT)
         thoughts = await loop.run_goal(
             request.goal,
@@ -81,6 +112,7 @@ async def list_workspace_files(_auth: str = Depends(require_auth)):
 async def run_command(request: ExecRequest, _auth: str = Depends(require_auth)):
     """Execute a command inside the SelfMirror workspace (auth required)."""
     try:
+        _validate_exec_command(request.command)
         loop = AgentLoop(PROJECT_ROOT)
         return loop.exec.run_command(request.command)
     except Exception:
@@ -112,6 +144,7 @@ async def list_secrets(_auth: str = Depends(require_auth)):
 async def update_secret(request: SecretRequest, _auth: str = Depends(require_auth)):
     """Update or create a secret key (auth required)."""
     from src.memory.lesson_learnt import LessonLearntStore
+    _validate_secret_value(request.value)
     db = LessonLearntStore()
     db.set_secret(request.name, request.value)
     return {"status": "updated", "key": request.name.upper()}
@@ -119,6 +152,8 @@ async def update_secret(request: SecretRequest, _auth: str = Depends(require_aut
 @router.delete("/secrets/{key_name}")
 async def delete_secret(key_name: str, _auth: str = Depends(require_auth)):
     """Delete a managed secret (auth required)."""
+    if len(key_name) > MAX_SECRET_NAME_LENGTH or "\x00" in key_name:
+        raise HTTPException(status_code=422, detail="Invalid secret name.")
     if not SECRET_NAME_PATTERN.fullmatch(key_name):
         raise HTTPException(status_code=422, detail="Invalid secret name.")
     from src.memory.lesson_learnt import LessonLearntStore

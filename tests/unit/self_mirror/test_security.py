@@ -1,5 +1,6 @@
 """Tests for the SelfMirror security layer."""
 
+import os
 import pytest
 from unittest.mock import patch
 from fastapi import HTTPException
@@ -142,27 +143,27 @@ class TestRequireAuth:
     @pytest.mark.asyncio
     async def test_missing_config_rejected(self):
         """Requests are rejected when SELFMIRROR_API_KEY is unset."""
-        with patch("backend.self_mirror.security.SELFMIRROR_API_KEY", ""):
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": ""}):
             with pytest.raises(HTTPException) as exc_info:
                 await require_auth(x_api_key=None)
             assert exc_info.value.status_code == 500
 
     @pytest.mark.asyncio
     async def test_valid_key_accepted(self):
-        with patch("backend.self_mirror.security.SELFMIRROR_API_KEY", "secret-123"):
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": "secret-123"}):
             result = await require_auth(x_api_key="secret-123")
             assert result == "secret-123"
 
     @pytest.mark.asyncio
     async def test_invalid_key_rejected(self):
-        with patch("backend.self_mirror.security.SELFMIRROR_API_KEY", "secret-123"):
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": "secret-123"}):
             with pytest.raises(HTTPException) as exc_info:
                 await require_auth(x_api_key="wrong-key")
             assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
     async def test_missing_key_rejected(self):
-        with patch("backend.self_mirror.security.SELFMIRROR_API_KEY", "secret-123"):
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": "secret-123"}):
             with pytest.raises(HTTPException) as exc_info:
                 await require_auth(x_api_key=None)
             assert exc_info.value.status_code == 401

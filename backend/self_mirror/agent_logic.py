@@ -102,8 +102,8 @@ class LLMClient:
                 )
                 response.raise_for_status()
                 return response.json()["choices"][0]["message"]["content"]
-            except Exception as e:
-                return f"Error: LLM call failed: {str(e)}"
+            except Exception:
+                return "Error: LLM call failed."
 
 
 def _parse_action(response: str) -> Optional[Dict[str, Any]]:
@@ -281,4 +281,3 @@ class AgentLoop:
                 })
 
         return [m["content"] for m in messages if m["role"] == "assistant"]
-

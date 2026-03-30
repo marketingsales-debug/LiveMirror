@@ -1,5 +1,6 @@
 """Tests for the SelfMirror API router."""
 
+import os
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi import FastAPI
@@ -10,6 +11,8 @@ from backend.self_mirror.main import router
 # Setup a test app
 app = FastAPI()
 app.include_router(router)
+API_KEY = "test-key"
+AUTH_HEADERS = {"X-API-Key": API_KEY}
 
 @pytest.fixture
 def anyio_backend():
@@ -22,10 +25,9 @@ async def test_list_files_success():
         mock_instance = MockLoop.return_value
         mock_instance.files.list_files.return_value = ["file1.py", "file2.py"]
         
-        # Mock auth to bypass
-        with patch("backend.self_mirror.main.require_auth", return_value="test-key"):
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": API_KEY}):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                response = await ac.get("/files")
+                response = await ac.get("/files", headers=AUTH_HEADERS)
                 
     assert response.status_code == 200
     assert response.json() == {"files": ["file1.py", "file2.py"]}
@@ -43,9 +45,9 @@ async def test_run_command_success():
             "exit_code": 0
         }
         
-        with patch("backend.self_mirror.main.require_auth", return_value="test-key"):
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": API_KEY}):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                response = await ac.post("/exec", json={"command": "echo hello"})
+                response = await ac.post("/exec", json={"command": "echo hello"}, headers=AUTH_HEADERS)
                 
     assert response.status_code == 200
     assert response.json()["stdout"] == "hello"
@@ -64,9 +66,9 @@ async def test_start_goal_success():
             "max_iterations": 5
         }
         
-        with patch("backend.self_mirror.main.require_auth", return_value="test-key"):
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": API_KEY}):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                response = await ac.post("/goal", json=goal_data)
+                response = await ac.post("/goal", json=goal_data, headers=AUTH_HEADERS)
                 
     assert response.status_code == 200
     assert response.json()["thoughts"] == ["Thought 1", "Thought 2"]
@@ -81,9 +83,51 @@ async def test_api_error_handling():
         mock_instance = MockLoop.return_value
         mock_instance.files.list_files.side_effect = Exception("System crash")
         
-        with patch("backend.self_mirror.main.require_auth", return_value="test-key"):
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": API_KEY}):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                response = await ac.get("/files")
+                response = await ac.get("/files", headers=AUTH_HEADERS)
                 
     assert response.status_code == 500
     assert response.json()["detail"] == "Failed to list files."
+
+
+@pytest.mark.anyio
+async def test_exec_rejects_shell_substitution():
+    """Reject command substitution/backticks at validation."""
+    with patch("backend.self_mirror.main.AgentLoop") as MockLoop:
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": API_KEY}):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                response = await ac.post("/exec", json={"command": "echo $(whoami)"}, headers=AUTH_HEADERS)
+
+    assert response.status_code == 422
+    MockLoop.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_goal_rejects_invalid_context_path():
+    """Reject context files with path traversal."""
+    with patch("backend.self_mirror.main.AgentLoop") as MockLoop:
+        with patch.dict(os.environ, {"SELFMIRROR_API_KEY": API_KEY}):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                response = await ac.post(
+                    "/goal",
+                    json={"goal": "Fix it", "context_files": ["../secret.txt"], "max_iterations": 3},
+                    headers=AUTH_HEADERS,
+                )
+
+    assert response.status_code == 422
+    MockLoop.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_secret_rejects_blank_value():
+    """Reject secrets that are only whitespace."""
+    with patch.dict(os.environ, {"SELFMIRROR_API_KEY": API_KEY}):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post(
+                "/secrets",
+                json={"name": "TEST_SECRET", "value": "   "},
+                headers=AUTH_HEADERS,
+            )
+
+    assert response.status_code == 422
