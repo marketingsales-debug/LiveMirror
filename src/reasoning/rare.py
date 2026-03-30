@@ -3,7 +3,7 @@ Logical Reasoning Module.
 Extracted patterns from RARE (Rejection Sampling) and Z1 (Shifted Thinking).
 """
 
-from typing import List, Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional, Callable
 import asyncio
 
 class RAREReasoning:

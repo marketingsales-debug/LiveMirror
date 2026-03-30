@@ -1,24 +1,38 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 const stats = ref<{
   total_validations: number;
   avg_accuracy: number;
   calibration_offset: number;
 } | null>(null);
+const errorMessage = ref<string | null>(null);
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
+let refreshTimer: number | null = null;
 
 const fetchStats = async () => {
   try {
-    const res = await fetch('http://localhost:5001/api/predict/learning');
+    const res = await fetch(apiUrl('/api/predict/learning'));
     if (res.ok) {
       stats.value = await res.json();
+      errorMessage.value = null;
+    } else {
+      errorMessage.value = 'Unable to load learning stats.';
     }
-  } catch(e) { console.error('Failed to fetch learning stats', e); }
+  } catch(e) {
+    errorMessage.value = 'Unable to load learning stats.';
+    console.error('Failed to fetch learning stats', e);
+  }
 };
 
 onMounted(() => {
   fetchStats();
-  setInterval(fetchStats, 15000);
+  refreshTimer = window.setInterval(fetchStats, 15000);
+});
+
+onUnmounted(() => {
+  if (refreshTimer !== null) window.clearInterval(refreshTimer);
 });
 </script>
 
@@ -46,6 +60,9 @@ onMounted(() => {
         <span class="label">Calibration Offset</span>
         <span class="value">{{ stats.calibration_offset > 0 ? '+' : '' }}{{ stats.calibration_offset.toFixed(3) }}</span>
       </div>
+    </div>
+    <div v-else-if="errorMessage" class="error">
+      {{ errorMessage }}
     </div>
     <div v-else class="empty">
       No learning data yet. Validate a prediction.
@@ -98,5 +115,14 @@ header h3 {
   background: rgba(0,0,0,0.2);
   border-radius: 8px;
   text-align: center;
+}
+.error {
+  opacity: 0.85;
+  font-size: 0.85rem;
+  padding: 16px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  text-align: center;
+  color: #ffb74d;
 }
 </style>

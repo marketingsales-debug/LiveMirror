@@ -6,7 +6,6 @@ Extracted from Stanford Generative Agents and SocioVerse patterns.
 
 from typing import List, Dict, Any, Optional, Callable
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 import random
 
@@ -45,7 +44,7 @@ class SocialAgent:
             
         prompt = (
             "Summarize what you've learned from these social interactions into 3 core beliefs.\n"
-            f"MEMORIES:\n" + "\n".join(self.memory[-20:])
+            "MEMORIES:\n" + "\n".join(self.memory[-20:])
         )
         summary = await llm_fn(prompt)
         self.beliefs = summary

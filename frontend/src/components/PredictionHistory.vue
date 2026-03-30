@@ -16,10 +16,12 @@ interface PredictionHistoryResponse {
 }
 
 const history = ref<PredictionHistoryItem[]>([]);
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
 
 const fetchHistory = async () => {
   try {
-    const res = await fetch('http://localhost:5001/api/predict/history');
+    const res = await fetch(apiUrl('/api/predict/history'));
     if (res.ok) {
       const data: PredictionHistoryResponse = await res.json();
       history.value = data.predictions ?? [];
@@ -32,7 +34,7 @@ const fetchHistory = async () => {
 const validateOutcome = async (predId: string, outcome: Direction | undefined, accuracy: number) => {
   const resolvedOutcome: Direction = outcome ?? 'PENDING';
   try {
-    const res = await fetch('http://localhost:5001/api/predict/validate', {
+    const res = await fetch(apiUrl('/api/predict/validate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prediction_id: predId, real_outcome: resolvedOutcome, accuracy })

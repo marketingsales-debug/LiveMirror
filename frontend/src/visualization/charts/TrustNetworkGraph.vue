@@ -7,6 +7,8 @@ const props = defineProps<{
   round?: number;
 }>();
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
 const svgContainer = ref<HTMLElement | null>(null);
 
 interface TrustNode extends d3.SimulationNodeDatum {
@@ -23,24 +25,72 @@ interface TrustLink extends d3.SimulationLinkDatum<TrustNode> {
 const nodes = ref<TrustNode[]>([]);
 const links = ref<TrustLink[]>([]);
 let eventSource: EventSource | null = null;
+let reconnectTimer: number | null = null;
+let retryDelay = 1000;
+const maxRetryDelay = 30000;
+let isUnmounted = false;
+
+const safeParse = <T>(raw: string, label: string): T | null => {
+  if (typeof raw !== 'string') {
+    console.warn(`Expected ${label} SSE payload to be string.`);
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    console.warn(`Failed to parse ${label} SSE payload`, error);
+    return null;
+  }
+};
+
+const safeClone = <T>(value: T, label: string): T => {
+  try {
+    return JSON.parse(JSON.stringify(value)) as T;
+  } catch (error) {
+    console.warn(`Failed to clone ${label}`, error);
+    return value;
+  }
+};
+
+const scheduleReconnect = () => {
+  if (reconnectTimer !== null || isUnmounted) return;
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    setupSSE();
+  }, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
+};
+
+const handleSimulationRound = (event: Event) => {
+  const msgEvent = event as MessageEvent;
+  const message = safeParse<{
+    data?: {
+      simulation_id?: string;
+      trust_network?: { nodes: TrustNode[]; links: TrustLink[] };
+    };
+  }>(msgEvent.data, 'simulation_round');
+  const trustNetwork = message?.data?.trust_network;
+  if (message?.data?.simulation_id === props.simulationId && trustNetwork) {
+    nodes.value = trustNetwork.nodes;
+    links.value = trustNetwork.links;
+    drawGraph();
+  }
+};
 
 const setupSSE = () => {
-  eventSource = new EventSource('/api/events');
-  
-  eventSource.addEventListener('simulation_round', (event: MessageEvent) => {
-    const message = JSON.parse(event.data);
-    const data = message.data;
-    
-    if (data.simulation_id === props.simulationId && data.trust_network) {
-      nodes.value = data.trust_network.nodes;
-      links.value = data.trust_network.links;
-      drawGraph();
-    }
-  });
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(`${API_BASE_URL}/api/events`);
+  eventSource.addEventListener('simulation_round', handleSimulationRound as EventListener);
+
+  eventSource.onopen = () => {
+    retryDelay = 1000;
+  };
 
   eventSource.onerror = (err) => {
     console.error("SSE Connection Failed:", err);
     eventSource?.close();
+    eventSource = null;
+    scheduleReconnect();
   };
 };
 
@@ -58,8 +108,8 @@ const drawGraph = () => {
     .attr('width', width)
     .attr('height', height);
 
-  const graphNodes = JSON.parse(JSON.stringify(nodes.value)) as TrustNode[];
-  const graphLinks = JSON.parse(JSON.stringify(links.value)) as TrustLink[];
+  const graphNodes = safeClone(nodes.value, 'trust nodes') as TrustNode[];
+  const graphLinks = safeClone(links.value, 'trust links') as TrustLink[];
 
   const simulation = d3.forceSimulation(graphNodes)
     .force('link', d3.forceLink<TrustNode, TrustLink>(graphLinks).id((d) => d.id).distance(100))
@@ -113,12 +163,15 @@ const drawGraph = () => {
 };
 
 onMounted(() => {
+  isUnmounted = false;
   setupSSE();
   window.addEventListener('resize', drawGraph);
 });
 
 onUnmounted(() => {
+  isUnmounted = true;
   eventSource?.close();
+  if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
   window.removeEventListener('resize', drawGraph);
 });
 

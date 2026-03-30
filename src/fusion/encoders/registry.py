@@ -3,7 +3,7 @@ Encoder Registry — manages available encoders.
 Owner: Claude
 """
 
-from typing import Dict, Callable, Optional
+from typing import Dict, Optional
 from .text import TextEncoder
 
 

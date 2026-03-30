@@ -9,8 +9,10 @@ import asyncio
 import uuid
 import sys
 import os
+import logging
+from datetime import datetime, timedelta
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, conint, constr
 from typing import List, Optional, Dict, Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -28,12 +30,15 @@ from src.ingestion.platforms.tiktok import TikTokIngester
 from src.ingestion.platforms.instagram import InstagramIngester
 from src.shared.types import Platform
 from .metrics import record_cache_stats
-from .metrics import record_cache_stats
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Track running jobs
 _jobs: Dict[str, Dict[str, Any]] = {}
+_jobs_lock = asyncio.Lock()
+_JOB_TTL = timedelta(hours=12)
+_MAX_JOBS = 1000
 
 # Shared pipeline instance — initialized lazily
 _pipeline: Optional[LiveMirrorPipeline] = None
@@ -62,11 +67,29 @@ def get_pipeline() -> LiveMirrorPipeline:
     return _get_pipeline()
 
 
+def _prune_jobs_locked(now: datetime) -> None:
+    cutoff = now - _JOB_TTL
+    expired = [
+        job_id
+        for job_id, job in _jobs.items()
+        if job.get("created_at") and job["created_at"] < cutoff
+    ]
+    for job_id in expired:
+        _jobs.pop(job_id, None)
+    if len(_jobs) > _MAX_JOBS:
+        overflow = len(_jobs) - _MAX_JOBS
+        for job_id, _ in sorted(
+            _jobs.items(),
+            key=lambda item: item[1].get("created_at", now),
+        )[:overflow]:
+            _jobs.pop(job_id, None)
+
+
 class IngestRequest(BaseModel):
     """Request to ingest data for a topic."""
-    topic: str
-    platforms: Optional[List[str]] = None
-    max_results_per_platform: int = 50
+    topic: constr(strip_whitespace=True, min_length=1, max_length=200)
+    platforms: Optional[List[Platform]] = Field(default=None, min_items=1)
+    max_results_per_platform: conint(ge=1, le=500) = 50
 
 
 class IngestResponse(BaseModel):
@@ -82,17 +105,25 @@ async def start_ingestion(request: IngestRequest, background_tasks: BackgroundTa
     """Start data ingestion for a topic across platforms."""
     pipeline = _get_pipeline()
     job_id = f"ingest_{uuid.uuid4().hex[:12]}"
+    now = datetime.now()
 
     # Resolve platform filter
-    platform_names = request.platforms or [p.value for p in pipeline.ingestion.available_platforms]
+    platform_names = (
+        [platform.value for platform in request.platforms]
+        if request.platforms
+        else [p.value for p in pipeline.ingestion.available_platforms]
+    )
 
-    _jobs[job_id] = {
-        "topic": request.topic,
-        "status": "running",
-        "platforms": platform_names,
-        "result": None,
-        "error": None,
-    }
+    async with _jobs_lock:
+        _prune_jobs_locked(now)
+        _jobs[job_id] = {
+            "topic": request.topic,
+            "status": "running",
+            "platforms": platform_names,
+            "result": None,
+            "error": None,
+            "created_at": now,
+        }
 
     background_tasks.add_task(
         _run_ingestion_bg, job_id, request.topic, request.max_results_per_platform
@@ -120,24 +151,39 @@ async def _run_ingestion_bg(job_id: str, topic: str, max_results: int) -> None:
             size=cache_stats["size"]
         )
 
-        _jobs[job_id]["status"] = "completed"
-        _jobs[job_id]["result"] = {
-            "query": result["query"],
-            "signals_found": len(result["scored_signals"]),
-            "analysis_count": len(result["analysis_results"]),
-            "graph_stats": result["graph_stats"],
-            "timing": result["timing"],
-        }
+        now = datetime.now()
+        async with _jobs_lock:
+            _prune_jobs_locked(now)
+            job = _jobs.get(job_id)
+            if not job:
+                return
+            job["status"] = "completed"
+            job["result"] = {
+                "query": result["query"],
+                "signals_found": len(result["scored_signals"]),
+                "analysis_count": len(result["analysis_results"]),
+                "graph_stats": result["graph_stats"],
+                "timing": result["timing"],
+            }
     except Exception as e:
-        _jobs[job_id]["status"] = "failed"
-        _jobs[job_id]["error"] = str(e)
-        print(f"[IngestAPI] Job {job_id} failed: {e}")
+        now = datetime.now()
+        async with _jobs_lock:
+            _prune_jobs_locked(now)
+            job = _jobs.get(job_id)
+            if not job:
+                return
+            job["status"] = "failed"
+            job["error"] = str(e)
+        logger.exception("[IngestAPI] Job %s failed", job_id)
 
 
 @router.get("/status/{job_id}")
 async def ingestion_status(job_id: str):
     """Check ingestion job status."""
-    job = _jobs.get(job_id)
+    now = datetime.now()
+    async with _jobs_lock:
+        _prune_jobs_locked(now)
+        job = _jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return {

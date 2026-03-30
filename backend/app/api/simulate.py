@@ -6,21 +6,23 @@ Wires the Vue dashboard's "Run Simulation" button to the real
 SimulationRunner + AgentFactory + KnowledgeGraph pipeline.
 """
 
-import asyncio
 import sys
 import os
+import logging
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field, conint, constr
+from typing import List, Optional
 
 # Ensure src is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-from src.simulation.engine.runner import SimulationRunner, SimulationStatus
+from src.simulation.engine.runner import SimulationRunner
 from src.simulation.agents.factory import AgentFactory
 from src.graph.knowledge.graph import KnowledgeGraph
+from src.shared.types import Platform
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Shared instances (in-memory for v1 — will move to DI container later)
 _runner = SimulationRunner()
@@ -36,11 +38,11 @@ def set_graph(graph: KnowledgeGraph) -> None:
 
 class SimulateRequest(BaseModel):
     """Request to run a simulation."""
-    topic: str
-    scenario: Optional[str] = None
-    agent_count: int = 50
-    total_rounds: int = 72
-    platforms: List[str] = ["twitter", "reddit"]
+    topic: constr(strip_whitespace=True, min_length=1, max_length=200)
+    scenario: Optional[constr(strip_whitespace=True, min_length=1, max_length=500)] = None
+    agent_count: conint(ge=1, le=200) = 50
+    total_rounds: conint(ge=1, le=500) = 72
+    platforms: List[Platform] = Field(default_factory=lambda: [Platform.TWITTER, Platform.REDDIT], min_items=1)
 
 
 class ScenarioRequest(BaseModel):
@@ -104,8 +106,8 @@ async def _run_simulation_bg(simulation_id: str) -> None:
     """Background task that runs the simulation with SSE emission."""
     try:
         await _runner.run(simulation_id, emit_sse=True)
-    except Exception as e:
-        print(f"[SimulationAPI] Simulation {simulation_id} failed: {e}")
+    except Exception:
+        logger.exception("[SimulationAPI] Simulation %s failed", simulation_id)
 
 
 @router.post("/scenario")

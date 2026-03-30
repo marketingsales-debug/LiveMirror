@@ -7,7 +7,6 @@ Falls back to David Teather's TikTok-Api (Playwright-based).
 """
 
 import os
-import asyncio
 from typing import List, Optional
 from datetime import datetime
 

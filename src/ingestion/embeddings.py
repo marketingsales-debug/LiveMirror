@@ -7,7 +7,7 @@ to a simple TF-IDF approach if the model isn't available.
 """
 
 import math
-from typing import List, Dict, Optional
+from typing import List
 from collections import Counter
 
 

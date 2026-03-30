@@ -10,6 +10,9 @@ import LearningStatsPanel from '../components/LearningStatsPanel.vue';
 import MetricsDashboard from '../components/MetricsDashboard.vue';
 import SecretsPanel from '../components/SecretsPanel.vue';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
+
 // Reactive State
 const topicInput = ref('AI Regulation');
 const totalSignals = ref(0);
@@ -91,15 +94,163 @@ interface Fingerprint {
 const activeFingerprints = ref<Fingerprint[]>([]);
 const activePrediction = ref<PredictionReport | null>(null);
 let es: EventSource | null = null;
+let reconnectTimer: number | null = null;
+let retryDelay = 1000;
+const maxRetryDelay = 30000;
+let isUnmounted = false;
+
+const safeParse = <T>(raw: string, label: string): T | null => {
+  if (typeof raw !== 'string') {
+    console.warn(`Expected ${label} SSE payload to be string.`);
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    console.warn(`Failed to parse ${label} SSE payload`, error);
+    return null;
+  }
+};
+
+const parseEvent = (event: Event, label: string) => {
+  const msgEvent = event as MessageEvent;
+  return safeParse<Record<string, unknown>>(msgEvent.data, label);
+};
+
+const scheduleReconnect = () => {
+  if (reconnectTimer !== null || isUnmounted) return;
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    connectStream();
+  }, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
+};
+
+const handleIngestionComplete = (e: Event) => {
+  const data = parseEvent(e, 'ingestion_complete');
+  if (!data) return;
+  totalSignals.value += Number(data.total_signals ?? 0);
+  latestQuery.value = (data.query as string) || '...';
+};
+
+const handleGraphUpdate = (e: Event) => {
+  const data = parseEvent(e, 'graph_update');
+  if (!data) return;
+  totalEntities.value = Number(data.total_entities ?? 0);
+};
+
+const handleAnalysisResult = (e: Event) => {
+  const data = parseEvent(e, 'analysis_result');
+  if (!data) return;
+  activeFingerprints.value.unshift({
+    id: String(data.signal_id ?? ''),
+    name: String(data.fingerprint ?? ''),
+    stage: String(data.narrative_stage ?? ''),
+    score: Number(data.emotional_velocity ?? 0),
+    platform: String(data.platform ?? ''),
+    isTipping: Boolean(data.is_tipping_point)
+  });
+  if (activeFingerprints.value.length > 8) {
+    activeFingerprints.value.pop();
+  }
+};
+
+const handlePredictionNew = async (e: Event) => {
+  const data = parseEvent(e, 'prediction_new');
+  if (!data || typeof data.prediction_id !== 'string') return;
+  try {
+    const res = await fetch(apiUrl(`/api/predict/report/${data.prediction_id}`));
+    if (res.ok) {
+      const report: PredictionReport = await res.json();
+      activePrediction.value = report;
+    }
+  } catch (err) {
+    console.error('Failed to load prediction report', err);
+  }
+};
+
+const handleSimulationRound = (e: Event) => {
+  const data = parseEvent(e, 'simulation_round');
+  if (!data) return;
+  activeSimulationId.value = data.simulation_id as string;
+  currentRound.value = Number(data.round_num ?? data.round ?? 0);
+  totalRounds.value = Number(data.total_rounds ?? 0);
+  roundActions.value = Number(data.actions_this_round ?? data.actions ?? 0);
+  isSimulating.value = true;
+};
+
+const handleSimulationComplete = (e: Event) => {
+  const data = parseEvent(e, 'simulation_complete');
+  if (!data) return;
+  isSimulating.value = false;
+  currentRound.value = Number(data.total_rounds ?? 0);
+};
+
+const handleFusionResult = (e: Event) => {
+  const data = parseEvent(e, 'fusion_result');
+  if (!data) return;
+  fusionSignals.value.unshift({
+    id: String(data.signal_id ?? ''),
+    direction: String(data.direction ?? ''),
+    confidence: Number(data.confidence ?? 0),
+    modalities: (data.modalities as Record<string, unknown>) ?? {}
+  });
+  if (fusionSignals.value.length > 5) fusionSignals.value.pop();
+};
+
+const handleAudiencePrediction = (e: Event) => {
+  const data = parseEvent(e, 'audience_prediction');
+  if (!data || typeof data.segment !== 'string') return;
+  audienceConsensus.value[data.segment] = {
+    direction: Number(data.direction ?? 0) || 0,
+    confidence: Number(data.confidence ?? 0) || 0
+  };
+};
+
+const handleTemporalUpdate = (e: Event) => {
+  const data = parseEvent(e, 'temporal_update');
+  if (!data) return;
+  temporalDynamics.value = {
+    momentum: Number(data.momentum ?? 0),
+    velocity: Number(data.velocity ?? 0),
+    acceleration: Number(data.acceleration ?? 0)
+  };
+};
+
+const connectStream = () => {
+  if (es) es.close();
+  es = new EventSource(apiUrl('/api/stream/events'));
+  es.addEventListener('ingestion_complete', handleIngestionComplete as EventListener);
+  es.addEventListener('graph_update', handleGraphUpdate as EventListener);
+  es.addEventListener('analysis_result', handleAnalysisResult as EventListener);
+  es.addEventListener('prediction_new', handlePredictionNew as EventListener);
+  es.addEventListener('simulation_round', handleSimulationRound as EventListener);
+  es.addEventListener('simulation_complete', handleSimulationComplete as EventListener);
+  es.addEventListener('fusion_result', handleFusionResult as EventListener);
+  es.addEventListener('audience_prediction', handleAudiencePrediction as EventListener);
+  es.addEventListener('temporal_update', handleTemporalUpdate as EventListener);
+
+  es.onopen = () => {
+    retryDelay = 1000;
+  };
+
+  es.onerror = (err) => {
+    console.warn('SSE connection error', err);
+    es?.close();
+    es = null;
+    scheduleReconnect();
+  };
+};
 
 
 const runIngestion = async () => {
   try {
-    await fetch('http://localhost:5001/api/ingest/start', { 
+    const res = await fetch(apiUrl('/api/ingest/start'), { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ topic: topicInput.value, platforms: ['reddit', 'hackernews', 'polymarket', 'web_search'] })
     });
+    if (!res.ok) throw new Error('Ingestion start failed');
   } catch(err) { console.error('Failed to start ingestion', err); }
 };
 
@@ -110,11 +261,12 @@ const runSimulation = async () => {
   activePrediction.value = null;
   
   try {
-    const res = await fetch('http://localhost:5001/api/simulate/start', { 
+    const res = await fetch(apiUrl('/api/simulate/start'), { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ topic: topicInput.value, agent_count: 50, total_rounds: 72 })
     });
+    if (!res.ok) throw new Error('Simulation start failed');
     const data = await res.json();
     activeSimulationId.value = data.simulation_id;
   } catch(err) {
@@ -130,7 +282,7 @@ const runPrediction = async () => {
   activePrediction.value = null;
 
   try {
-    const res = await fetch('http://localhost:5001/api/predict/start', { 
+    const res = await fetch(apiUrl('/api/predict/start'), { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ topic: topicInput.value, agent_count: 50, simulation_rounds: 72 })
@@ -144,118 +296,14 @@ const runPrediction = async () => {
 };
 
 onMounted(() => {
-  es = new EventSource('http://localhost:5001/api/stream/events');
-
-  es.addEventListener('ingestion_complete', ((e: Event) => {
-    try {
-      const msgEvent = e as MessageEvent;
-      const data = JSON.parse(msgEvent.data);
-      totalSignals.value += data.total_signals || 0;
-      latestQuery.value = data.query || '...';
-    } catch { /* ignore */ }
-  }) as EventListener);
-
-  es.addEventListener('graph_update', ((e: Event) => {
-    try {
-      const msgEvent = e as MessageEvent;
-      const data = JSON.parse(msgEvent.data);
-      totalEntities.value = data.total_entities || 0;
-    } catch { /* ignore */ }
-  }) as EventListener);
-
-  es.addEventListener('analysis_result', ((e: Event) => {
-    try {
-      const msgEvent = e as MessageEvent;
-      const data = JSON.parse(msgEvent.data);
-      activeFingerprints.value.unshift({
-        id: data.signal_id,
-        name: data.fingerprint,
-        stage: data.narrative_stage,
-        score: data.emotional_velocity,
-        platform: data.platform,
-        isTipping: data.is_tipping_point
-      });
-      if (activeFingerprints.value.length > 8) {
-        activeFingerprints.value.pop();
-      }
-    } catch { /* ignore */ }
-  }) as EventListener);
-
-  es.addEventListener('prediction_new', (async (e: Event) => {
-    try {
-      const msgEvent = e as MessageEvent;
-      const data = JSON.parse(msgEvent.data);
-      // Fetch full debate report
-      const res = await fetch(`http://localhost:5001/api/predict/report/${data.prediction_id}`);
-      if (res.ok) {
-        const report: PredictionReport = await res.json();
-        activePrediction.value = report;
-      }
-    } catch(err) { console.error('Failed to load prediction report', err); }
-  }) as EventListener);
-
-  // Phase 3 Simulation Listeners
-  es.addEventListener('simulation_round', ((e: Event) => {
-    try {
-      const msgEvent = e as MessageEvent;
-      const data = JSON.parse(msgEvent.data);
-      activeSimulationId.value = data.simulation_id;
-      currentRound.value = data.round_num || data.round;
-      totalRounds.value = data.total_rounds;
-      roundActions.value = data.actions_this_round || data.actions;
-      isSimulating.value = true;
-    } catch { /* ignore */ }
-  }) as EventListener);
-
-  es.addEventListener('simulation_complete', ((e: Event) => {
-    try {
-      const msgEvent = e as MessageEvent;
-      const data = JSON.parse(msgEvent.data);
-      isSimulating.value = false;
-      currentRound.value = data.total_rounds;
-    } catch { /* ignore */ }
-  }) as EventListener);
-
-  es.addEventListener('fusion_result', ((e: Event) => {
-    try {
-      const msgEvent = e as MessageEvent;
-      const data = JSON.parse(msgEvent.data);
-      fusionSignals.value.unshift({
-        id: data.signal_id,
-        direction: data.direction,
-        confidence: data.confidence,
-        modalities: data.modalities ?? {}
-      });
-      if (fusionSignals.value.length > 5) fusionSignals.value.pop();
-    } catch { /* ignore */ }
-  }) as EventListener);
-
-  es.addEventListener('audience_prediction', ((e: Event) => {
-    try {
-      const msgEvent = e as MessageEvent;
-      const data = JSON.parse(msgEvent.data);
-      audienceConsensus.value[data.segment] = {
-        direction: Number(data.direction) || 0,
-        confidence: Number(data.confidence) || 0
-      };
-    } catch { /* ignore */ }
-  }) as EventListener);
-
-  es.addEventListener('temporal_update', ((e: Event) => {
-    try {
-      const msgEvent = e as MessageEvent;
-      const data = JSON.parse(msgEvent.data);
-      temporalDynamics.value = {
-        momentum: data.momentum,
-        velocity: data.velocity,
-        acceleration: data.acceleration
-      };
-    } catch { /* ignore */ }
-  }) as EventListener);
+  isUnmounted = false;
+  connectStream();
 });
 
 onUnmounted(() => {
+  isUnmounted = true;
   if (es) es.close();
+  if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
 });
 </script>
 

@@ -11,10 +11,10 @@ The self-improving loop:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+from typing import List, Optional
 from datetime import datetime
 
-from ...shared.types import AgentPersona, Prediction, PredictionStatus
+from ...shared.types import AgentPersona
 from ..engine.runner import SimulationState
 
 

@@ -10,24 +10,35 @@ interface Thought {
 
 const thoughts = ref<Thought[]>([]);
 const streamActive = ref(false);
+const streamStatusText = ref('Connecting...');
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+let reconnectTimer: number | null = null;
+let retryDelay = 1000;
+const maxRetryDelay = 30000;
+let isUnmounted = false;
 
 // Connect to the global SSE stream
 let eventSource: EventSource | null = null;
 
 onMounted(() => {
+  isUnmounted = false;
   connectStream();
 });
 
 onUnmounted(() => {
+  isUnmounted = true;
   if (eventSource) eventSource.close();
+  if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
 });
 
 function connectStream() {
-  const url = `${import.meta.env.VITE_API_BASE_URL}/api/stream/events`;
+  if (eventSource) eventSource.close();
+  const url = `${API_BASE_URL}/api/stream/events`;
   eventSource = new EventSource(url);
 
   eventSource.addEventListener('agent_thought', (event: MessageEvent) => {
-    const payload = JSON.parse(event.data);
+    const payload = safeParse<{ data: Thought; timestamp: string }>(event.data, 'agent_thought');
+    if (!payload?.data) return;
     thoughts.value.unshift({
       id: Math.random().toString(36).substr(2, 9),
       message: payload.data.message,
@@ -35,12 +46,46 @@ function connectStream() {
       timestamp: payload.timestamp
     });
     streamActive.value = true;
+    streamStatusText.value = 'Live';
   });
 
-  eventSource.onerror = () => {
+  eventSource.onopen = () => {
+    retryDelay = 1000;
+    streamActive.value = true;
+    streamStatusText.value = 'Live';
+  };
+
+  eventSource.onerror = (err) => {
+    console.warn('Thought stream SSE error', err);
     streamActive.value = false;
+    streamStatusText.value = 'Reconnecting...';
+    eventSource?.close();
+    eventSource = null;
+    scheduleReconnect();
   };
 }
+
+const safeParse = <T>(raw: string, label: string): T | null => {
+  if (typeof raw !== 'string') {
+    console.warn(`Expected ${label} SSE payload to be string.`);
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    console.warn(`Failed to parse ${label} SSE payload`, error);
+    return null;
+  }
+};
+
+const scheduleReconnect = () => {
+  if (reconnectTimer !== null || isUnmounted) return;
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    connectStream();
+  }, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
+};
 
 const getStepColor = (step: string) => {
   switch (step) {
@@ -63,7 +108,10 @@ const getStepColor = (step: string) => {
         </span>
         Autonomous Thought Stream
       </h3>
-      <span class="text-xs text-slate-500">{{ thoughts.length }} events</span>
+      <div class="text-xs text-slate-500 flex items-center gap-2">
+        <span>{{ streamStatusText }}</span>
+        <span>{{ thoughts.length }} events</span>
+      </div>
     </div>
 
     <div class="overflow-y-auto flex-grow space-y-4 pr-2 custom-scrollbar">

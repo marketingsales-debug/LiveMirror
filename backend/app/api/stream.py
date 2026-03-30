@@ -11,6 +11,7 @@ Streams live data to the dashboard:
 
 import json
 import asyncio
+import logging
 from typing import AsyncGenerator, Dict, Any, Optional
 from datetime import datetime
 
@@ -18,6 +19,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class EventBus:
@@ -52,7 +54,24 @@ class EventBus:
             try:
                 queue.put_nowait(message)
             except asyncio.QueueFull:
-                dead_queues.append(queue)
+                logger.warning("SSE queue overflow; dropping oldest message")
+                try:
+                    queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+                overflow_message = {
+                    "type": "alert",
+                    "data": {
+                        "level": "warning",
+                        "message": "SSE client is lagging; messages were dropped.",
+                        "queue_size": queue.qsize(),
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                }
+                try:
+                    queue.put_nowait(overflow_message)
+                except asyncio.QueueFull:
+                    dead_queues.append(queue)
 
         # Clean up overflowed queues
         for q in dead_queues:

@@ -19,16 +19,23 @@ let particles: THREE.Points;
 let animationId: number;
 let handleResize: (() => void) | null = null;
 
+const getSize = () => {
+  const width = Math.max(container.value?.clientWidth ?? 0, 1);
+  const height = Math.max(container.value?.clientHeight ?? 0, 1);
+  return { width, height };
+};
+
 onMounted(() => {
   if (!container.value) return;
 
   // 1. Scene Setup
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, container.value.clientWidth / container.value.clientHeight, 0.1, 1000);
+  const { width, height } = getSize();
+  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
   camera.position.z = 50;
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(container.value.clientWidth, container.value.clientHeight);
+  renderer.setSize(width, height);
   container.value.appendChild(renderer.domElement);
 
   // 2. Galaxy Particles
@@ -87,9 +94,10 @@ onMounted(() => {
   // Resize handler
   handleResize = () => {
     if (!container.value) return;
-    camera.aspect = container.value.clientWidth / container.value.clientHeight;
+    const { width, height } = getSize();
+    camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    renderer.setSize(container.value.clientWidth, container.value.clientHeight);
+    renderer.setSize(width, height);
   };
   window.addEventListener('resize', handleResize);
 });

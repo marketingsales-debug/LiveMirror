@@ -12,9 +12,18 @@ Provides real-time metrics for:
 from fastapi import APIRouter
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
+import asyncio
+import logging
 import numpy as np
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+_metrics_lock = asyncio.Lock()
+_METRICS_TTL = timedelta(days=14)
+_MAX_PREDICTION_METRICS = 10000
+_MAX_FINE_TUNE_RUNS = 1000
+_MAX_ACCURACY_HISTORY = 1000
+_MAX_LATENCY_SAMPLES = 10000
 
 # In-memory metrics storage (replace with Redis in production)
 _metrics_store: Dict[str, Any] = {
@@ -26,6 +35,26 @@ _metrics_store: Dict[str, Any] = {
 }
 
 
+def _prune_metrics_locked(now: datetime) -> None:
+    cutoff = now - _METRICS_TTL
+    _metrics_store["predictions"] = [
+        p for p in _metrics_store["predictions"]
+        if p.get("ts") and p["ts"] >= cutoff
+    ]
+    _metrics_store["fine_tune_runs"] = [
+        r for r in _metrics_store["fine_tune_runs"]
+        if r.get("ts") and r["ts"] >= cutoff
+    ]
+    if len(_metrics_store["predictions"]) > _MAX_PREDICTION_METRICS:
+        _metrics_store["predictions"] = _metrics_store["predictions"][-_MAX_PREDICTION_METRICS:]
+    if len(_metrics_store["fine_tune_runs"]) > _MAX_FINE_TUNE_RUNS:
+        _metrics_store["fine_tune_runs"] = _metrics_store["fine_tune_runs"][-_MAX_FINE_TUNE_RUNS:]
+    if len(_metrics_store["accuracy_history"]) > _MAX_ACCURACY_HISTORY:
+        _metrics_store["accuracy_history"] = _metrics_store["accuracy_history"][-_MAX_ACCURACY_HISTORY:]
+    if len(_metrics_store["latency_samples"]) > _MAX_LATENCY_SAMPLES:
+        _metrics_store["latency_samples"] = _metrics_store["latency_samples"][-_MAX_LATENCY_SAMPLES:]
+
+
 @router.get("/overview")
 async def metrics_overview() -> Dict[str, Any]:
     """
@@ -34,10 +63,13 @@ async def metrics_overview() -> Dict[str, Any]:
     Returns:
         Overview of prediction count, accuracy, latency, cache performance
     """
-    predictions = _metrics_store["predictions"]
-    accuracy_history = _metrics_store["accuracy_history"]
-    latency_samples = _metrics_store["latency_samples"]
-    cache = _metrics_store["cache_stats"]
+    now = datetime.now()
+    async with _metrics_lock:
+        _prune_metrics_locked(now)
+        predictions = list(_metrics_store["predictions"])
+        accuracy_history = list(_metrics_store["accuracy_history"])
+        latency_samples = list(_metrics_store["latency_samples"])
+        cache = dict(_metrics_store["cache_stats"])
     
     # Calculate stats
     total_predictions = len(predictions)
@@ -132,7 +164,10 @@ async def fine_tune_status() -> Dict[str, Any]:
     Returns:
         Current state, pending samples, recent runs, regression status
     """
-    runs = _metrics_store["fine_tune_runs"]
+    now = datetime.now()
+    async with _metrics_lock:
+        _prune_metrics_locked(now)
+        runs = list(_metrics_store["fine_tune_runs"])
     
     # Find latest run
     latest = runs[-1] if runs else None
@@ -174,7 +209,10 @@ async def accuracy_drift() -> Dict[str, Any]:
     Returns:
         Accuracy history by day, drift status, alerts
     """
-    history = _metrics_store["accuracy_history"]
+    now = datetime.now()
+    async with _metrics_lock:
+        _prune_metrics_locked(now)
+        history = list(_metrics_store["accuracy_history"])
     
     # Calculate drift
     drift_status = "stable"
@@ -215,6 +253,9 @@ async def pipeline_health() -> Dict[str, Any]:
     Returns:
         Status of each encoder, attention, cache, and learning loop
     """
+    async with _metrics_lock:
+        _prune_metrics_locked(datetime.now())
+        cache_size = _metrics_store["cache_stats"].get("size", 0)
     return {
         "timestamp": datetime.now().isoformat(),
         "components": {
@@ -230,7 +271,7 @@ async def pipeline_health() -> Dict[str, Any]:
             },
             "embedding_cache": {
                 "status": "healthy",
-                "size": _metrics_store["cache_stats"].get("size", 0),
+                "size": cache_size,
                 "max_size": 1000,
             },
             "batch_processor": {"status": "healthy", "batch_size": 16},
@@ -247,17 +288,16 @@ async def record_prediction(
     variant: str = "control",
 ) -> Dict[str, str]:
     """Record a prediction for metrics tracking."""
-    _metrics_store["predictions"].append({
-        "ts": datetime.now(),
-        "latency_ms": latency_ms,
-        "confidence": confidence,
-        "variant": variant,
-    })
-    _metrics_store["latency_samples"].append(latency_ms)
-    
-    # Keep only last 10000 samples
-    if len(_metrics_store["latency_samples"]) > 10000:
-        _metrics_store["latency_samples"] = _metrics_store["latency_samples"][-10000:]
+    now = datetime.now()
+    async with _metrics_lock:
+        _metrics_store["predictions"].append({
+            "ts": now,
+            "latency_ms": latency_ms,
+            "confidence": confidence,
+            "variant": variant,
+        })
+        _metrics_store["latency_samples"].append(latency_ms)
+        _prune_metrics_locked(now)
     
     return {"status": "recorded"}
 
@@ -265,16 +305,17 @@ async def record_prediction(
 @router.post("/record-fine-tune")
 async def record_fine_tune(samples: int, pre_accuracy: float, post_accuracy: float, rollback: bool = False) -> Dict[str, str]:
     """Record a fine-tune run."""
-    _metrics_store["fine_tune_runs"].append({
-        "ts": datetime.now(),
-        "samples": samples,
-        "pre_accuracy": pre_accuracy,
-        "post_accuracy": post_accuracy,
-        "rollback": rollback,
-    })
-    
-    # Update accuracy history
-    _metrics_store["accuracy_history"].append(post_accuracy)
+    now = datetime.now()
+    async with _metrics_lock:
+        _metrics_store["fine_tune_runs"].append({
+            "ts": now,
+            "samples": samples,
+            "pre_accuracy": pre_accuracy,
+            "post_accuracy": post_accuracy,
+            "rollback": rollback,
+        })
+        _metrics_store["accuracy_history"].append(post_accuracy)
+        _prune_metrics_locked(now)
     
     return {"status": "recorded"}
 
@@ -282,9 +323,12 @@ async def record_fine_tune(samples: int, pre_accuracy: float, post_accuracy: flo
 @router.post("/record-cache-stats")
 async def record_cache_stats(hits: int, misses: int, size: int = 0) -> Dict[str, str]:
     """Update cache statistics."""
-    _metrics_store["cache_stats"]["hits"] = hits
-    _metrics_store["cache_stats"]["misses"] = misses
-    _metrics_store["cache_stats"]["size"] = size
+    now = datetime.now()
+    async with _metrics_lock:
+        _metrics_store["cache_stats"]["hits"] = hits
+        _metrics_store["cache_stats"]["misses"] = misses
+        _metrics_store["cache_stats"]["size"] = size
+        _prune_metrics_locked(now)
     return {"status": "updated"}
 
 

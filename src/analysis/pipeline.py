@@ -8,9 +8,8 @@ as a unified pipeline, returning a structured AnalysisResult.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
 
-from src.shared.types.platform import ScoredSignal, Platform
+from src.shared.types.platform import ScoredSignal
 from src.shared.types.prediction import NarrativeStage
 from src.analysis.sentiment.analyzer import SentimentAnalyzer
 from src.analysis.emotional.contagion import EmotionalContagionTracker

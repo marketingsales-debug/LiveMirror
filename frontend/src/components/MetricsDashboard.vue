@@ -39,14 +39,16 @@ type Drift = {
 const overview = ref<Overview | null>(null);
 const fineTune = ref<FineTune | null>(null);
 const drift = ref<Drift | null>(null);
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
 let timer: number | undefined;
 
 const fetchMetrics = async () => {
   try {
     const [o, f, d] = await Promise.all([
-      fetch('http://localhost:5001/api/metrics/overview'),
-      fetch('http://localhost:5001/api/metrics/fine-tune'),
-      fetch('http://localhost:5001/api/metrics/accuracy-drift')
+      fetch(apiUrl('/api/metrics/overview')),
+      fetch(apiUrl('/api/metrics/fine-tune')),
+      fetch(apiUrl('/api/metrics/accuracy-drift'))
     ]);
     if (o.ok) overview.value = await o.json();
     if (f.ok) fineTune.value = await f.json();

@@ -92,7 +92,7 @@ class AudioEncoder:
             import os
             if os.path.isfile(source):
                 return source
-        except:
+        except (OSError, Exception):
             pass
         
         # Try to download from URL
@@ -119,7 +119,7 @@ class AudioEncoder:
                             import os
                             if os.path.isfile(path):
                                 return path
-                        except:
+                        except (OSError, Exception):
                             pass
             except (ImportError, Exception):
                 pass

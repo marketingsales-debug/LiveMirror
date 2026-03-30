@@ -77,8 +77,21 @@ class CrossModalReasoning:
     
     def _cosine_similarity(self, v1: np.ndarray, v2: np.ndarray) -> float:
         """Compute cosine similarity between two vectors."""
-        t1 = torch.from_numpy(v1.astype(np.float32)).unsqueeze(0)
-        t2 = torch.from_numpy(v2.astype(np.float32)).unsqueeze(0)
+        if v1 is None or v2 is None:
+            return 0.0
+        v1_arr = np.asarray(v1, dtype=np.float32)
+        v2_arr = np.asarray(v2, dtype=np.float32)
+        if v1_arr.size == 0 or v2_arr.size == 0:
+            return 0.0
+        if v1_arr.shape != v2_arr.shape:
+            return 0.0
+        if not np.all(np.isfinite(v1_arr)) or not np.all(np.isfinite(v2_arr)):
+            return 0.0
+        if np.linalg.norm(v1_arr) == 0.0 or np.linalg.norm(v2_arr) == 0.0:
+            return 0.0
+
+        t1 = torch.from_numpy(v1_arr).unsqueeze(0)
+        t2 = torch.from_numpy(v2_arr).unsqueeze(0)
         return torch.nn.functional.cosine_similarity(t1, t2).item()
     
     def _classify_pairwise_conflict(

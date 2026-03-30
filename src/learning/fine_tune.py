@@ -13,6 +13,9 @@ import asyncio
 import uuid
 import numpy as np
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -216,9 +219,20 @@ class FineTuningLoop:
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
-                asyncio.run(coro)
+                try:
+                    asyncio.run(coro)
+                except Exception:
+                    logger.exception("[FineTune] Background task failed")
             else:
-                loop.create_task(coro)
+                task = loop.create_task(coro)
+
+                def _log_task_result(task: asyncio.Task) -> None:
+                    try:
+                        task.result()
+                    except Exception:
+                        logger.exception("[FineTune] Background task failed")
+
+                task.add_done_callback(_log_task_result)
         
         # 1. Save current weights for potential rollback
         self._save_weights()

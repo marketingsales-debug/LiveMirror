@@ -5,7 +5,7 @@ LOCK REQUIRED to edit this file — see .collab/RULES.md Rule 3.
 
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from datetime import datetime
 
 

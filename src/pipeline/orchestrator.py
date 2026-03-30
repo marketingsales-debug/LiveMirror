@@ -10,11 +10,10 @@ This is the main orchestration loop that:
 5. Emits SSE events at each stage for the frontend
 """
 
-import asyncio
 from typing import List, Optional
 from datetime import datetime
 
-from ..shared.types import Platform, ScoredSignal
+from ..shared.types import Platform
 from ..ingestion.manager import IngestionManager
 from ..ingestion.scorer import SignalScorer
 from ..analysis.pipeline import AnalysisPipeline, AnalysisResult

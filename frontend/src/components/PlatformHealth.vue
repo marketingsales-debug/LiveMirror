@@ -1,21 +1,35 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 const healthData = ref<Record<string, { status: string; latency_ms: number; last_check: string }> | null>(null);
+const errorMessage = ref<string | null>(null);
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
+let refreshTimer: number | null = null;
 
 const fetchHealth = async () => {
   try {
-    const res = await fetch('http://localhost:5001/api/ingest/health');
+    const res = await fetch(apiUrl('/api/ingest/health'));
     if (res.ok) {
       const data = await res.json();
       healthData.value = data.platforms;
+      errorMessage.value = null;
+    } else {
+      errorMessage.value = 'Unable to load platform health.';
     }
-  } catch(e) { console.error('Failed to fetch platform health', e); }
+  } catch(e) {
+    errorMessage.value = 'Unable to load platform health.';
+    console.error('Failed to fetch platform health', e);
+  }
 };
 
 onMounted(() => {
   fetchHealth();
-  setInterval(fetchHealth, 30000); // 30s polling
+  refreshTimer = window.setInterval(fetchHealth, 30000); // 30s polling
+});
+
+onUnmounted(() => {
+  if (refreshTimer !== null) window.clearInterval(refreshTimer);
 });
 </script>
 
@@ -30,6 +44,7 @@ onMounted(() => {
         <span class="name">{{ platform }}</span>
       </div>
     </div>
+    <div v-else-if="errorMessage" class="error">{{ errorMessage }}</div>
     <div v-else class="loading">Checking platforms...</div>
   </div>
 </template>
@@ -72,5 +87,10 @@ header h4 {
 .loading {
   font-size: 0.8rem;
   opacity: 0.5;
+}
+.error {
+  font-size: 0.8rem;
+  color: #ffb74d;
+  opacity: 0.9;
 }
 </style>

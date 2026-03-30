@@ -4,7 +4,7 @@ Ensures sensitive environment variables are NEVER exposed to the agent.
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 # List of keys that are STRICTLY PROHIBITED from being seen by the agent
 SENSITIVE_KEYS = [
@@ -29,9 +29,6 @@ class SecretManager:
         Returns a filtered dictionary of environment variables.
         Removes all sensitive keys to prevent agent exposure.
         """
-        from src.memory.lesson_learnt import LessonLearntStore
-        db = LessonLearntStore()
-        
         # Start with environment
         safe_env = {}
         for key, value in os.environ.items():

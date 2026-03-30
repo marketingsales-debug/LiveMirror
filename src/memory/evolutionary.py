@@ -4,7 +4,7 @@ Stores Ideation and Experiment logs to prevent the agent from repeating mistakes
 Extracted from EvoScientist patterns.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import json
 import os
 from datetime import datetime

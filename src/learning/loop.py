@@ -11,15 +11,14 @@ Wires together:
 This is the "brain" that makes LiveMirror get smarter over time.
 """
 
-import asyncio
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
-from ..shared.types import Prediction, PredictionStatus
-from ..simulation.calibration.calibrator import CalibrationEngine, CalibrationReport
-from ..simulation.engine.runner import SimulationRunner, SimulationState
-from .validation.validator import PredictionValidator, ValidationResult
-from .fine_tune import FineTuningLoop, FineTuneConfig
+from ..shared.types import Prediction
+from ..simulation.calibration.calibrator import CalibrationEngine
+from ..simulation.engine.runner import SimulationState
+from .validation.validator import PredictionValidator
+from .fine_tune import FineTuningLoop
 
 
 class LearningLoop:

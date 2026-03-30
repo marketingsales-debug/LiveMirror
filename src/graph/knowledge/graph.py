@@ -11,12 +11,12 @@ lightweight in-memory graph first (swap to Zep/Neo4j when we scale).
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional, Tuple
+from typing import Dict, List, Set, Tuple
 from datetime import datetime
 from enum import Enum
 from collections import defaultdict
 
-from ...shared.types import ScoredSignal, Platform
+from ...shared.types import ScoredSignal
 
 
 class EntityType(str, Enum):

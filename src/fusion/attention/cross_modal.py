@@ -7,8 +7,7 @@ Fuses text, audio, video embeddings into unified representation.
 """
 
 import numpy as np
-from typing import List, Optional
-from datetime import datetime
+from typing import List
 
 
 class CrossModalAttention:

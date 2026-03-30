@@ -7,7 +7,7 @@ import asyncio
 from typing import List, Dict, Optional
 from datetime import datetime
 
-from ..shared.types import RawSignal, ScoredSignal, Platform
+from ..shared.types import RawSignal, Platform
 from .base import BaseIngester
 
 

@@ -62,11 +62,12 @@ class TemporalTransformer:
             for s in states
         ]
         
-        # Apply positional encoding
+        # Apply positional encoding (oldest -> newest)
         max_idx = min(len(embeddings), self.max_seq_len)
+        embedding_slice = embeddings[-max_idx:]
         encoded = []
-        for i in range(max_idx):
-            enc = embeddings[i] + self.pos_encoding[max_idx - 1 - i]
+        for i, embedding in enumerate(embedding_slice):
+            enc = embedding + self.pos_encoding[i]
             encoded.append(enc)
         
         # Compute velocity (first derivative)

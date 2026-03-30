@@ -11,8 +11,7 @@ How it works:
 6. Generate a final Prediction with confidence calibrated by debate outcome
 """
 
-from typing import List, Dict, Optional
-from datetime import datetime
+from typing import List
 import uuid
 
 from ..shared.types import (

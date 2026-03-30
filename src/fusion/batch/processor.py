@@ -6,7 +6,7 @@ Processes multiple signals in parallel for 8x faster throughput.
 """
 
 import asyncio
-from typing import List, Optional, Any, Callable
+from typing import List, Optional, Any
 from ..types import MultiAudiencePrediction
 
 class BatchProcessor:

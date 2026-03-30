@@ -6,7 +6,7 @@ Wires the frontend to the LangGraph Research Board and Secret Manager.
 import os
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import List
 
 from .security import require_auth
 from .agent_logic import AgentLoop

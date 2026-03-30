@@ -3,9 +3,11 @@ Unit tests for FusionPipeline end-to-end.
 Owner: Claude
 """
 
+import logging
+import numpy as np
 import pytest
 from src.fusion.pipeline import FusionPipeline
-from src.fusion.types import FusionConfig
+from src.fusion.types import FusionConfig, ModalityEmbedding
 
 
 class TestFusionPipeline:
@@ -65,3 +67,36 @@ class TestFusionPipeline:
         
         states = pipeline.context_manager.get_recent()
         assert len(states) == 5
+
+    def test_process_signal_logs_and_returns_none_on_exception(self, monkeypatch, caplog):
+        """Exceptions are logged and return None."""
+        config = FusionConfig(enable_audio=False, enable_video=False)
+        pipeline = FusionPipeline(config)
+
+        def boom(*_args, **_kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(pipeline.text_encoder, "encode", boom)
+
+        with caplog.at_level(logging.ERROR):
+            result = pipeline.process_signal(content="bad input")
+
+        assert result is None
+        assert any("Fusion pipeline processing failed" in record.message for record in caplog.records)
+
+    def test_process_signal_returns_none_for_invalid_fused_embedding(self, monkeypatch, caplog):
+        """Invalid fused embeddings are rejected."""
+        config = FusionConfig(enable_audio=False, enable_video=False, use_learned_attention=False)
+        pipeline = FusionPipeline(config)
+
+        def fake_encode(_content: str):
+            return ModalityEmbedding("text", np.ones(384, dtype=np.float32))
+
+        monkeypatch.setattr(pipeline.text_encoder, "encode", fake_encode)
+        monkeypatch.setattr(pipeline.cross_modal_fixed, "fuse", lambda _embeddings: None)
+
+        with caplog.at_level(logging.WARNING):
+            result = pipeline.process_signal(content="hello")
+
+        assert result is None
+        assert any("Fused embedding invalid" in record.message for record in caplog.records)

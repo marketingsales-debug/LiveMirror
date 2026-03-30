@@ -9,12 +9,11 @@ This is the single entry point for running a complete prediction cycle.
 Each stage feeds the next, with SSE events emitted throughout.
 """
 
-import asyncio
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import numpy as np
 
-from ..shared.types import Platform, Prediction
+from ..shared.types import Platform
 from ..pipeline.orchestrator import LiveMirrorPipeline
 from ..simulation.engine.runner import SimulationRunner
 from ..simulation.agents.factory import AgentFactory
@@ -26,7 +25,7 @@ from ..ingestion.platforms.hackernews import HackerNewsIngester
 from ..ingestion.platforms.polymarket import PolymarketIngester
 from ..ingestion.platforms.web_search import WebSearchIngester
 from ..orchestrator.graph import research_board, AgentState
-from ..reasoning.rare import RAREReasoning, Z1Thinking
+from ..reasoning.rare import RAREReasoning
 from ..routing.router import ModelRouter
 from ..streaming.redis_bus import RedisEventBus
 

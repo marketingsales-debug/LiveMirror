@@ -11,7 +11,7 @@ Composite scoring based on:
 
 import math
 from typing import List, Dict, Set
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 
 from ..shared.types import RawSignal, ScoredSignal

@@ -5,7 +5,6 @@ Extracted logic from Mem0 and Stanford Generative Agents.
 """
 
 import sqlite3
-import json
 import os
 import base64
 import hashlib

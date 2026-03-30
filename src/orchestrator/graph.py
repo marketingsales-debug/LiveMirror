@@ -5,18 +5,16 @@ Fully implemented nodes with reasoning, routing, and memory.
 
 import operator
 import os
-from typing import Annotated, Sequence, TypedDict, Union, List, Dict, Any, Optional
+from typing import Annotated, Sequence, TypedDict, List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, AIMessage
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from ..guards.schemas import StructuredResponse, AgentThought, AgentAction, Citation
+from ..guards.schemas import StructuredResponse
 from ..guards.citation import CitationVerifier
 from ..memory.lesson_learnt import LessonLearntStore
 from ..memory.evolutionary import EvolutionaryMemory
-from ..reasoning.rare import RAREReasoning
-from ..routing.router import ModelRouter
 from ..skills.ablation import ExperimentGate
 
 # --- Shared Components ---
@@ -59,7 +57,6 @@ async def researcher_node(state: AgentState):
     print("--- [RA] RESEARCHING ---")
 
     # Retrieve past wisdom (Phase 3 + Evo)
-    lessons = MEMORY_STORE.get_lessons(topic=state["goal"], limit=3)
     history = EVO_MEMORY.get_recent_history(limit=5)
 
     prompt = (

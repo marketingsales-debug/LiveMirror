@@ -10,9 +10,11 @@ import uuid
 import sys
 import os
 import time
+import logging
+from datetime import datetime, timedelta
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, conint, confloat, constr
+from typing import Optional, Dict, Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
@@ -21,11 +23,11 @@ from src.simulation.engine.runner import SimulationRunner
 from src.simulation.agents.factory import AgentFactory
 from src.simulation.calibration.calibrator import CalibrationEngine
 from src.learning.loop import LearningLoop
-from src.shared.types import Prediction, PredictionStatus
 from .metrics import record_prediction
 from backend.app.services.experiments import ExperimentManager
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Shared instances
 _debate = DebateEngine()
@@ -37,15 +39,46 @@ _experiments = ExperimentManager.from_env()
 
 # Track predictions (with simulation state for learning)
 _predictions: Dict[str, Dict[str, Any]] = {}
-_simulation_states: Dict[str, Any] = {}  # pred_id -> SimulationState
+_simulation_states: Dict[str, Dict[str, Any]] = {}  # pred_id -> {state, created_at}
+_predictions_lock = asyncio.Lock()
+_PREDICTION_TTL = timedelta(days=7)
+_MAX_PREDICTIONS = 1000
+_MAX_SIMULATION_STATES = 1000
+
+
+def _prune_prediction_store_locked(now: datetime) -> None:
+    cutoff = now - _PREDICTION_TTL
+    expired = [
+        pred_id
+        for pred_id, pred in _predictions.items()
+        if pred.get("created_at") and pred["created_at"] < cutoff
+    ]
+    for pred_id in expired:
+        _predictions.pop(pred_id, None)
+        _simulation_states.pop(pred_id, None)
+    if len(_predictions) > _MAX_PREDICTIONS:
+        overflow = len(_predictions) - _MAX_PREDICTIONS
+        for pred_id, _ in sorted(
+            _predictions.items(),
+            key=lambda item: item[1].get("created_at", now),
+        )[:overflow]:
+            _predictions.pop(pred_id, None)
+            _simulation_states.pop(pred_id, None)
+    if len(_simulation_states) > _MAX_SIMULATION_STATES:
+        overflow = len(_simulation_states) - _MAX_SIMULATION_STATES
+        for pred_id, _ in sorted(
+            _simulation_states.items(),
+            key=lambda item: item[1].get("created_at", now),
+        )[:overflow]:
+            _simulation_states.pop(pred_id, None)
 
 
 class PredictRequest(BaseModel):
     """Request a prediction on a topic."""
-    topic: str
-    question: Optional[str] = None
-    agent_count: int = 50
-    simulation_rounds: int = 72
+    topic: constr(strip_whitespace=True, min_length=1, max_length=200)
+    question: Optional[constr(strip_whitespace=True, min_length=1, max_length=500)] = None
+    agent_count: conint(ge=1, le=200) = 50
+    simulation_rounds: conint(ge=1, le=500) = 72
     run_debate: bool = True
 
 
@@ -120,30 +153,40 @@ async def _run_shadow_prediction(pred_id: str, request: PredictRequest) -> None:
     try:
         result = await _execute_prediction(request, "candidate", emit_sse=False)
         if result.get("error"):
-            _predictions[pred_id]["shadow_error"] = result["error"]
+            async with _predictions_lock:
+                pred = _predictions.get(pred_id)
+                if pred:
+                    pred["shadow_error"] = result["error"]
             return
 
         prediction = result["prediction"]
-        _predictions[pred_id]["shadow"] = {
-            "prediction_id": prediction.prediction_id,
-            "topic": prediction.topic,
-            "confidence": round(prediction.confidence, 3),
-            "confidence_level": prediction.confidence_level.value,
-            "bull_score": prediction.bull_score,
-            "bear_score": prediction.bear_score,
-            "consensus": prediction.debate_consensus,
-            "simulation_rounds": prediction.simulation_rounds,
-            "source_signals": prediction.source_signals_count,
-            "narrative_stage": prediction.narrative_stage.value,
-            "latency_ms": round(result["latency_ms"], 2),
-        }
+        async with _predictions_lock:
+            pred = _predictions.get(pred_id)
+            if pred:
+                pred["shadow"] = {
+                    "prediction_id": prediction.prediction_id,
+                    "topic": prediction.topic,
+                    "confidence": round(prediction.confidence, 3),
+                    "confidence_level": prediction.confidence_level.value,
+                    "bull_score": prediction.bull_score,
+                    "bear_score": prediction.bear_score,
+                    "consensus": prediction.debate_consensus,
+                    "simulation_rounds": prediction.simulation_rounds,
+                    "source_signals": prediction.source_signals_count,
+                    "narrative_stage": prediction.narrative_stage.value,
+                    "latency_ms": round(result["latency_ms"], 2),
+                }
         await record_prediction(
             latency_ms=result["latency_ms"],
             confidence=prediction.confidence,
             variant="shadow",
         )
     except Exception as e:
-        _predictions[pred_id]["shadow_error"] = str(e)
+        async with _predictions_lock:
+            pred = _predictions.get(pred_id)
+            if pred:
+                pred["shadow_error"] = str(e)
+        logger.exception("[PredictAPI] Shadow prediction %s failed", pred_id)
 
 
 @router.post("/start", response_model=PredictResponse)
@@ -159,16 +202,20 @@ async def start_prediction(request: PredictRequest, background_tasks: Background
     """
     pred_id = f"pred_{uuid.uuid4().hex[:12]}"
     variant = _experiments.assign_variant(pred_id)
+    now = datetime.now()
 
-    _predictions[pred_id] = {
-        "topic": request.topic,
-        "status": "running",
-        "prediction": None,
-        "debate": None,
-        "error": None,
-        "variant": variant,
-        "shadow": None,
-    }
+    async with _predictions_lock:
+        _prune_prediction_store_locked(now)
+        _predictions[pred_id] = {
+            "topic": request.topic,
+            "status": "running",
+            "prediction": None,
+            "debate": None,
+            "error": None,
+            "variant": variant,
+            "shadow": None,
+            "created_at": now,
+        }
 
     background_tasks.add_task(
         _run_prediction_bg, pred_id, request
@@ -184,7 +231,8 @@ async def start_prediction(request: PredictRequest, background_tasks: Background
 async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
     """Run the full simulation → debate → prediction pipeline."""
     try:
-        requested_variant = _predictions.get(pred_id, {}).get("variant", "control")
+        async with _predictions_lock:
+            requested_variant = _predictions.get(pred_id, {}).get("variant", "control")
 
         if _experiments.shadow_mode:
             primary_variant = "control"
@@ -198,8 +246,11 @@ async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
             result = await _execute_prediction(request, primary_variant)
 
         if result.get("error"):
-            _predictions[pred_id]["status"] = "failed"
-            _predictions[pred_id]["error"] = result["error"]
+            async with _predictions_lock:
+                pred = _predictions.get(pred_id)
+                if pred:
+                    pred["status"] = "failed"
+                    pred["error"] = result["error"]
             return
 
         prediction = result["prediction"]
@@ -220,7 +271,16 @@ async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
 
         # Register for learning (primary variant only)
         _learning.register_prediction(prediction)
-        _simulation_states[pred_id] = state
+        now = datetime.now()
+        async with _predictions_lock:
+            _prune_prediction_store_locked(now)
+            pred = _predictions.get(pred_id)
+            if not pred:
+                return
+            _simulation_states[pred_id] = {
+                "state": state,
+                "created_at": now,
+            }
 
         # Record metrics for monitoring dashboard
         await record_prediction(
@@ -229,39 +289,49 @@ async def _run_prediction_bg(pred_id: str, request: PredictRequest) -> None:
             variant=primary_variant,
         )
 
-        _predictions[pred_id]["status"] = "completed"
-        _predictions[pred_id]["variant"] = primary_variant
-        _predictions[pred_id]["prediction"] = {
-            "prediction_id": prediction.prediction_id,
-            "topic": prediction.topic,
-            "text": prediction.prediction_text,
-            "confidence": round(prediction.confidence, 3),
-            "confidence_level": prediction.confidence_level.value,
-            "bull_score": prediction.bull_score,
-            "bear_score": prediction.bear_score,
-            "consensus": prediction.debate_consensus,
-            "simulation_rounds": prediction.simulation_rounds,
-            "source_signals": prediction.source_signals_count,
-            "narrative_stage": prediction.narrative_stage.value,
-            "latency_ms": round(latency_ms, 2),
-        }
-        _predictions[pred_id]["debate"] = {
-            "direction": debate_result.direction,
-            "bull_count": len(debate_result.bull_arguments),
-            "bear_count": len(debate_result.bear_arguments),
-            "neutral_count": debate_result.neutral_count,
-        }
+        async with _predictions_lock:
+            pred = _predictions.get(pred_id)
+            if not pred:
+                return
+            pred["status"] = "completed"
+            pred["variant"] = primary_variant
+            pred["prediction"] = {
+                "prediction_id": prediction.prediction_id,
+                "topic": prediction.topic,
+                "text": prediction.prediction_text,
+                "confidence": round(prediction.confidence, 3),
+                "confidence_level": prediction.confidence_level.value,
+                "bull_score": prediction.bull_score,
+                "bear_score": prediction.bear_score,
+                "consensus": prediction.debate_consensus,
+                "simulation_rounds": prediction.simulation_rounds,
+                "source_signals": prediction.source_signals_count,
+                "narrative_stage": prediction.narrative_stage.value,
+                "latency_ms": round(latency_ms, 2),
+            }
+            pred["debate"] = {
+                "direction": debate_result.direction,
+                "bull_count": len(debate_result.bull_arguments),
+                "bear_count": len(debate_result.bear_arguments),
+                "neutral_count": debate_result.neutral_count,
+            }
 
     except Exception as e:
-        _predictions[pred_id]["status"] = "failed"
-        _predictions[pred_id]["error"] = str(e)
-        print(f"[PredictAPI] Prediction {pred_id} failed: {e}")
+        async with _predictions_lock:
+            pred = _predictions.get(pred_id)
+            if pred:
+                pred["status"] = "failed"
+                pred["error"] = str(e)
+        logger.exception("[PredictAPI] Prediction %s failed", pred_id)
 
 
 @router.get("/status/{prediction_id}")
 async def prediction_status(prediction_id: str):
     """Check prediction status."""
-    pred = _predictions.get(prediction_id)
+    now = datetime.now()
+    async with _predictions_lock:
+        _prune_prediction_store_locked(now)
+        pred = _predictions.get(prediction_id)
     if not pred:
         raise HTTPException(status_code=404, detail="Prediction not found")
     return {
@@ -279,7 +349,10 @@ async def prediction_status(prediction_id: str):
 @router.get("/report/{prediction_id}")
 async def prediction_report(prediction_id: str):
     """Get full prediction report."""
-    pred = _predictions.get(prediction_id)
+    now = datetime.now()
+    async with _predictions_lock:
+        _prune_prediction_store_locked(now)
+        pred = _predictions.get(prediction_id)
     if not pred:
         raise HTTPException(status_code=404, detail="Prediction not found")
     if pred["status"] != "completed":
@@ -291,15 +364,18 @@ async def prediction_report(prediction_id: str):
 async def prediction_history():
     """List all past predictions with accuracy tracking."""
     history = []
-    for pid, pred in _predictions.items():
-        if pred["prediction"]:
-            history.append({
-                "prediction_id": pid,
-                "topic": pred["topic"],
-                "status": pred["status"],
-                "confidence": pred["prediction"].get("confidence"),
-                "direction": pred["debate"].get("direction") if pred["debate"] else None,
-            })
+    now = datetime.now()
+    async with _predictions_lock:
+        _prune_prediction_store_locked(now)
+        for pid, pred in _predictions.items():
+            if pred["prediction"]:
+                history.append({
+                    "prediction_id": pid,
+                    "topic": pred["topic"],
+                    "status": pred["status"],
+                    "confidence": pred["prediction"].get("confidence"),
+                    "direction": pred["debate"].get("direction") if pred["debate"] else None,
+                })
     avg_confidence = (
         sum(p["confidence"] for p in history if p["confidence"]) / len(history)
         if history else None
@@ -309,9 +385,9 @@ async def prediction_history():
 
 class ValidateRequest(BaseModel):
     """Submit real-world outcome for a prediction."""
-    prediction_id: str
-    actual_outcome: str
-    accuracy_score: float  # 0-1
+    prediction_id: constr(strip_whitespace=True, min_length=1, max_length=100)
+    actual_outcome: constr(strip_whitespace=True, min_length=1, max_length=1000)
+    accuracy_score: confloat(ge=0.0, le=1.0)  # 0-1
 
 
 @router.post("/validate")
@@ -325,13 +401,16 @@ async def validate_prediction(request: ValidateRequest):
     3. Updates confidence calibration curve
     4. Next prediction cycle uses adjusted parameters
     """
-    pred = _predictions.get(request.prediction_id)
-    if not pred:
-        raise HTTPException(status_code=404, detail="Prediction not found")
-    if pred["status"] != "completed":
-        raise HTTPException(status_code=400, detail="Can only validate completed predictions")
-
-    sim_state = _simulation_states.get(request.prediction_id)
+    now = datetime.now()
+    async with _predictions_lock:
+        _prune_prediction_store_locked(now)
+        pred = _predictions.get(request.prediction_id)
+        if not pred:
+            raise HTTPException(status_code=404, detail="Prediction not found")
+        if pred["status"] != "completed":
+            raise HTTPException(status_code=400, detail="Can only validate completed predictions")
+        sim_state_entry = _simulation_states.get(request.prediction_id)
+    sim_state = sim_state_entry.get("state") if sim_state_entry else None
 
     result = _learning.validate_and_calibrate(
         prediction_id=request.prediction_id,

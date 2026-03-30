@@ -5,6 +5,7 @@ Owner: Claude
 Integrates encoders, attention, temporal, audiences, and noise detection.
 """
 
+import logging
 import numpy as np
 from typing import Optional, Dict, List, Any
 from datetime import datetime
@@ -27,6 +28,8 @@ from .cache.embedding_cache import EmbeddingCache
 
 class FusionPipeline:
     """Complete multimodal fusion pipeline."""
+
+    logger = logging.getLogger(__name__)
     
     def __init__(self, config: Optional[FusionConfig] = None):
         """Initialize fusion pipeline."""
@@ -93,6 +96,9 @@ class FusionPipeline:
             MultiAudiencePrediction or None if error
         """
         try:
+            metadata = metadata or {}
+            engagement = engagement or {}
+
             # 1. Encode modalities
             embeddings = {}
             
@@ -145,6 +151,11 @@ class FusionPipeline:
                 fused_embedding = self.cross_modal_learned(embeddings)
             else:
                 fused_embedding = self.cross_modal_fixed.fuse(embeddings)
+
+            fused_embedding = self._sanitize_embedding(fused_embedding)
+            if fused_embedding is None:
+                self.logger.warning("Fused embedding invalid; skipping signal.")
+                return None
             
             # 2b. Compute Modality Alignment (Reasoning Phase)
             alignment_report = self.reasoning_engine.compute_modality_alignment(embeddings)
@@ -152,11 +163,11 @@ class FusionPipeline:
             # 3. Create narrative state
             state = NarrativeStateVector(
                 timestamp=datetime.now(),
-                signal_id=metadata.get("signal_id", "") if metadata else "",
+                signal_id=metadata.get("signal_id", ""),
                 fused_embedding=fused_embedding,
                 platform=platform,
-                engagement_score=engagement.get("likes", 0) if engagement else 0.0,
-                url=metadata.get("url") if metadata else None,
+                engagement_score=engagement.get("likes", 0),
+                url=metadata.get("url"),
             )
             
             # Map modality-specific embeddings for state persistence
@@ -175,7 +186,7 @@ class FusionPipeline:
             
             # 3b. Intent and Credibility Detection
             intent_res = self.intent_detector.determine_intent(
-                content, metadata.get("author", {}) if metadata else {}
+                content, metadata.get("author", {})
             )
             state.intent = intent_res["intent"]
             state.credibility_score = intent_res["credibility"]
@@ -220,8 +231,9 @@ class FusionPipeline:
                 prediction.consensus_confidence = adjusted_conf
             
             return prediction
-        except Exception as exc:
-            raise
+        except Exception:
+            self.logger.exception("Fusion pipeline processing failed")
+            return None
     
     def fine_tune_attention(self, history: List[Dict[str, Any]], outcomes: List[np.ndarray]):
         """
@@ -244,3 +256,14 @@ class FusionPipeline:
             acceleration=np.zeros_like(embedding),
             momentum=0.0,
         )
+
+    def _sanitize_embedding(self, embedding: Optional[np.ndarray]) -> Optional[np.ndarray]:
+        """Validate fused embeddings for downstream safety."""
+        if embedding is None:
+            return None
+        arr = np.asarray(embedding, dtype=np.float32)
+        if arr.shape != (self.config.embedding_dim,) or arr.size == 0:
+            return None
+        if not np.all(np.isfinite(arr)):
+            return None
+        return arr

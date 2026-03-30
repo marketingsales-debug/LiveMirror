@@ -7,7 +7,7 @@ Uses ScrapeCreators API when available, falls back to public JSON API.
 
 import os
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import httpx
 

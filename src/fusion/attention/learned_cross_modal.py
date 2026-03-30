@@ -9,7 +9,7 @@ Achieves +2% accuracy boost (86% -> 88%) via learned multimodal alignment.
 import torch
 import torch.nn as nn
 import numpy as np
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 class LearnedCrossModalAttention(nn.Module):

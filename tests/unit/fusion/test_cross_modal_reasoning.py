@@ -91,6 +91,17 @@ class TestCrossModalReasoning:
         assert len(pairwise) == 3
         assert all(isinstance(pc, PairwiseConflict) for pc in pairwise)
 
+    def test_cosine_similarity_handles_invalid_vectors(self):
+        """Cosine similarity should guard empty or non-finite values."""
+        reasoning = CrossModalReasoning()
+
+        empty = np.array([], dtype=np.float32)
+        assert reasoning._cosine_similarity(empty, empty) == 0.0
+
+        nan_vec = np.array([np.nan, 1.0], dtype=np.float32)
+        inf_vec = np.array([np.inf, 0.0], dtype=np.float32)
+        assert reasoning._cosine_similarity(nan_vec, inf_vec) == 0.0
+
     def test_analyze_cross_modal_conflict_full_report(self):
         """Full conflict analysis should return comprehensive report."""
         reasoning = CrossModalReasoning()

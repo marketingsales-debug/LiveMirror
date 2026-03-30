@@ -17,6 +17,7 @@ Usage:
 import os
 import json
 import asyncio
+import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
@@ -38,6 +39,7 @@ class RedisEventBus:
         self._subscribers: list[asyncio.Queue] = []
         self._listener_task: Optional[asyncio.Task] = None
         self._connected = False
+        self._logger = logging.getLogger(__name__)
 
     async def connect(self) -> bool:
         """
@@ -54,11 +56,11 @@ class RedisEventBus:
 
             # Start listener task
             self._listener_task = asyncio.create_task(self._listen())
-            print(f"[RedisEventBus] Connected to {redis_url}")
+            self._logger.info("[RedisEventBus] Connected to %s", redis_url)
             return True
 
         except Exception as e:
-            print(f"[RedisEventBus] Redis unavailable ({e}), using in-memory fallback")
+            self._logger.warning("[RedisEventBus] Redis unavailable (%s), using in-memory fallback", e)
             self._redis = None
             self._connected = False
             return False
@@ -95,7 +97,7 @@ class RedisEventBus:
                 await self._redis.publish(self.CHANNEL, json.dumps(message, default=str))
                 return
             except Exception as e:
-                print(f"[RedisEventBus] Publish failed ({e}), falling back to in-memory")
+                self._logger.warning("[RedisEventBus] Publish failed (%s), falling back to in-memory", e)
 
         # In-memory fallback
         self._dispatch_to_subscribers(message)
@@ -113,8 +115,8 @@ class RedisEventBus:
                     pass
         except asyncio.CancelledError:
             pass
-        except Exception as e:
-            print(f"[RedisEventBus] Listener error: {e}")
+        except Exception:
+            self._logger.exception("[RedisEventBus] Listener error")
             self._connected = False
 
     def _dispatch_to_subscribers(self, message: Dict[str, Any]) -> None:
@@ -124,7 +126,24 @@ class RedisEventBus:
             try:
                 queue.put_nowait(message)
             except asyncio.QueueFull:
-                dead_queues.append(queue)
+                self._logger.warning("SSE queue overflow; dropping oldest message")
+                try:
+                    queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+                overflow_message = {
+                    "type": "alert",
+                    "data": {
+                        "level": "warning",
+                        "message": "SSE client is lagging; messages were dropped.",
+                        "queue_size": queue.qsize(),
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                }
+                try:
+                    queue.put_nowait(overflow_message)
+                except asyncio.QueueFull:
+                    dead_queues.append(queue)
         for q in dead_queues:
             self._subscribers.remove(q)
 

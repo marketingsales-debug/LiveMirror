@@ -3,7 +3,6 @@ LiveMirror Backend API
 FastAPI server for the real-time prediction engine.
 """
 
-import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

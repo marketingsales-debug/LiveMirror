@@ -6,6 +6,8 @@ const props = defineProps<{
   round?: number;
 }>();
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
 type AgentHistory = {
   id: string;
   name: string;
@@ -14,43 +16,87 @@ type AgentHistory = {
 
 const histories = ref<AgentHistory[]>([]);
 let eventSource: EventSource | null = null;
+let reconnectTimer: number | null = null;
+let retryDelay = 1000;
+const maxRetryDelay = 30000;
+let isUnmounted = false;
+
+const safeParse = <T>(raw: string, label: string): T | null => {
+  if (typeof raw !== 'string') {
+    console.warn(`Expected ${label} SSE payload to be string.`);
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    console.warn(`Failed to parse ${label} SSE payload`, error);
+    return null;
+  }
+};
+
+const scheduleReconnect = () => {
+  if (reconnectTimer !== null || isUnmounted) return;
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    setupSSE();
+  }, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
+};
+
+const handleSimulationRound = (event: Event) => {
+  const msgEvent = event as MessageEvent;
+  const message = safeParse<{
+    data?: {
+      simulation_id?: string;
+      belief_profile?: Record<string, number>;
+      trust_network?: { nodes: Array<{ id: string; name: string }> };
+    };
+  }>(msgEvent.data, 'simulation_round');
+  if (!message?.data) return;
+  const { simulation_id, belief_profile, trust_network } = message.data;
+  if (simulation_id === props.simulationId && belief_profile && trust_network?.nodes) {
+    const nodes = trust_network.nodes;
+    const profile = belief_profile;
+    
+    nodes.forEach((node) => {
+      let agent = histories.value.find((h) => h.id === node.id);
+      if (!agent) {
+        agent = { id: node.id, name: node.name, shifts: [] };
+        histories.value.push(agent);
+      }
+      const shiftValue = Number(profile[node.id] ?? 0);
+      agent.shifts.push(shiftValue);
+      if (agent.shifts.length > 15) agent.shifts.shift();
+    });
+  }
+};
 
 const setupSSE = () => {
-  eventSource = new EventSource('/api/events');
-  
-  eventSource.addEventListener('simulation_round', (event: MessageEvent) => {
-    const message = JSON.parse(event.data);
-    const data = message.data;
-    
-    if (data.simulation_id === props.simulationId && data.belief_profile && data.trust_network) {
-      const nodes = data.trust_network.nodes as Array<{ id: string; name: string }>;
-      const profile = data.belief_profile as Record<string, number>;
-      
-      nodes.forEach((node) => {
-        let agent = histories.value.find((h) => h.id === node.id);
-        if (!agent) {
-          agent = { id: node.id, name: node.name, shifts: [] };
-          histories.value.push(agent);
-        }
-        const shiftValue = Number(profile[node.id] ?? 0);
-        agent.shifts.push(shiftValue);
-        if (agent.shifts.length > 15) agent.shifts.shift();
-      });
-    }
-  });
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(`${API_BASE_URL}/api/events`);
+  eventSource.addEventListener('simulation_round', handleSimulationRound as EventListener);
+
+  eventSource.onopen = () => {
+    retryDelay = 1000;
+  };
 
   eventSource.onerror = (err) => {
     console.error("Belief SSE Connection Failed:", err);
     eventSource?.close();
+    eventSource = null;
+    scheduleReconnect();
   };
 };
 
 onMounted(() => {
+  isUnmounted = false;
   setupSSE();
 });
 
 onUnmounted(() => {
+  isUnmounted = true;
   eventSource?.close();
+  if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
 });
 </script>
 

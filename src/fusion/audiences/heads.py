@@ -11,7 +11,6 @@ import numpy as np
 
 from ..types import (
     AudienceSegment,
-    SegmentPrediction,
     MultiAudiencePrediction,
     TemporalState,
 )

@@ -8,7 +8,7 @@ predictions against real outcomes to compute accuracy metrics.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from enum import Enum
 import json
 import numpy as np
@@ -450,7 +450,6 @@ class BacktestHarness:
         
         # Calibration
         confidences = [r.predicted_confidence for r in self.results]
-        accuracies = [1.0 if r.is_correct else 0.0 for r in self.results]
         
         metrics.mean_confidence = np.mean(confidences)
         metrics.mean_accuracy = metrics.accuracy
