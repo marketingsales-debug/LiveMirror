@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LiveMirror Multi-Model Agentic Simulation - Kaggle Bootstrap Script
+LiveMirror Multi-Model Agentic Simulation - Kaggle Deployment & Verification
 This script automates the setup, dependency installation, and health verification for LiveMirror on Kaggle.
 """
 
@@ -141,6 +141,8 @@ def setup_kaggle():
 def verify_apis():
     """Optional: Run the original API verification tests once online."""
     print_header("🔍 Running API Verification")
+    # This would call the original logic if needed, but setup_kaggle handles the deployment.
+    # For now, we'll just confirm the environment is set.
     for k in NVIDIA_REGISTRY:
         if k in os.environ or os.path.exists(".env"):
             print(f"{GREEN}✓ {k} is configured.{RESET}")

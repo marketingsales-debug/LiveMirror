@@ -37,3 +37,9 @@ build/
 *.pem
 *.key
 credentials.json
+
+# API verification scripts (placeholders only)
+# scripts/verify_apis.py
+# scripts/verify_apis_kaggle.py
+# scripts/bootstrap_kaggle.py
+
