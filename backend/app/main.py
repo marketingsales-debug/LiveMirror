@@ -3,9 +3,12 @@ LiveMirror Backend API
 FastAPI server for the real-time prediction engine.
 """
 
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .api.health import router as health_router
 from .api.ingest import router as ingest_router
@@ -60,10 +63,7 @@ app = FastAPI(
 # CORS — allow frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-    ],
+    allow_origins=["*"], # Broaden for Cloud/Kaggle tunneling
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,7 +76,7 @@ async def root_health():
     return {"status": "ok"}
 
 
-# Routers
+# API Routers
 app.include_router(health_router, prefix="/api", tags=["health"])
 app.include_router(ingest_router, prefix="/api/ingest", tags=["ingestion"])
 app.include_router(predict_router, prefix="/api/predict", tags=["prediction"])
@@ -84,3 +84,19 @@ app.include_router(simulate_router, prefix="/api/simulate", tags=["simulation"])
 app.include_router(stream_router, prefix="/api/stream", tags=["real-time"])
 app.include_router(metrics_router, prefix="/api/metrics", tags=["monitoring"])
 app.include_router(self_mirror_router, prefix="/api/self-mirror", tags=["autonomous"])
+
+# --- Frontend Static Serving (For Kaggle/Cloud) ---
+# This allows the backend to serve the dashboard UI directly
+frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+
+if os.path.exists(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+else:
+    @app.get("/")
+    async def root_fallback():
+        return {
+            "status": "online",
+            "message": "LiveMirror Backend Active. Frontend build not found.",
+            "api_docs": "/docs",
+            "setup_hint": "Run 'npm run build' in the frontend directory to enable the dashboard."
+        }
