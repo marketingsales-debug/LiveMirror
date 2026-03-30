@@ -220,8 +220,8 @@ class FusionPipeline:
                 prediction.consensus_confidence = adjusted_conf
             
             return prediction
-        except Exception:
-            return None
+        except Exception as exc:
+            raise
     
     def fine_tune_attention(self, history: List[Dict[str, Any]], outcomes: List[np.ndarray]):
         """

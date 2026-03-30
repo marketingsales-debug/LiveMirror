@@ -122,7 +122,8 @@ class CrossModalReasoning:
         
         # Sentiment vs others: FinBERT sentiment vs raw modality
         if "sentiment" in pair:
-            other = (pair - {"sentiment"}).pop()
+            other_set = pair - {"sentiment"}
+            other = next(iter(other_set)) if other_set else "unknown"
             if conflict_score >= self.HIGH_CONFLICT_THRESHOLD:
                 return ConflictType.INCONSISTENCY, f"FinBERT sentiment conflicts with {other} embedding"
             return ConflictType.UNCERTAINTY, f"Minor sentiment-{other} divergence"
