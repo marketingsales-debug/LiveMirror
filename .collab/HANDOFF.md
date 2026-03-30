@@ -2,6 +2,25 @@
 
 ## Latest Handoff
 
+### 2026-03-29 — GPT-5.2-Codex (Variant Drift Alerts + A/B Split)
+
+**What was done:**
+- **Variant drift alerts:** `metrics/overview` now computes per-variant avg confidence/latency and emits alerts if candidate drops >5% or >10% vs control.
+- **Dashboard upgrade:** Metrics panel now shows per-variant counts + avg confidence/latency and displays variant alerts.
+- **A/B default split:** Updated `.env.example` to `AB_TEST_SPLIT=0.20`.
+- **Simulation fix:** Restored missing `AgentBehaviorEngine` + action primitives to unblock tests.
+- **License:** Added MIT `LICENSE` file (per request).
+
+**Why:** Makes A/B health visible in real time and sets the requested 20% default split. Restored simulation behavior to keep tests passing.
+
+**What to do next:**
+1. Monitor candidate vs control confidence deltas in the dashboard.
+2. Promote candidate if stable after burn-in.
+
+**Blockers:** None.
+
+---
+
 ### 2026-03-29 — GPT-5.2-Codex (Variant Metrics Dashboard)
 
 **What was done:**
