@@ -93,6 +93,54 @@ npm install
 
 ---
 
+## 🔌 API Integration
+
+LiveMirror exposes a robust REST + SSE API for external integration.
+
+### 1. Start Ingestion
+Trigger a real-time signal collection job across platforms.
+```bash
+curl -X POST http://localhost:8000/api/ingest/start \
+     -H "Content-Type: application/json" \
+     -d '{
+       "topic": "AI Regulation",
+       "platforms": ["twitter", "reddit", "news"],
+       "max_results_per_platform": 100
+     }'
+```
+
+### 2. Generate Prediction
+Run a simulation and multi-agent debate to generate a future forecast.
+```bash
+curl -X POST http://localhost:8000/api/predict/start \
+     -H "Content-Type: application/json" \
+     -d '{
+       "topic": "Bitcoin Price",
+       "agent_count": 50,
+       "simulation_rounds": 72
+     }'
+```
+
+### 3. Stream Real-Time Events (SSE)
+Subscribe to the live event bus to receive updates as they happen.
+```javascript
+const eventSource = new EventSource('http://localhost:8000/api/stream/events');
+
+eventSource.addEventListener('ingestion_progress', (e) => {
+  console.log('Ingestion Progress:', JSON.parse(e.data));
+});
+
+eventSource.addEventListener('prediction_new', (e) => {
+  console.log('New Prediction Generated:', JSON.parse(e.data));
+});
+
+eventSource.addEventListener('agent_thought', (e) => {
+  console.log('Agent Decision:', JSON.parse(e.data).message);
+});
+```
+
+---
+
 ## 📜 License
 Distributed under the MIT License. See `LICENSE` for more information.
 
