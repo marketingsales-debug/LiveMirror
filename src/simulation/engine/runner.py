@@ -8,13 +8,17 @@ Based on MiroFish's OASIS simulation runner, enhanced with:
 - Prediction validation hooks
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Callable, Awaitable
 from datetime import datetime
 from enum import Enum
+import asyncio
 
 from ...shared.types import AgentPersona, Prediction
 from ..agents.behavior import AgentBehaviorEngine, AgentDecision, ActionType
+
+logger = logging.getLogger(__name__)
 
 
 class SimulationStatus(str, Enum):
@@ -181,6 +185,8 @@ class SimulationRunner:
         round_actions: List[SimulationAction] = []
         active_count = 0
 
+        logger.info(f"[Simulation] Starting round {round_num}/{state.total_rounds}")
+
         # Phase 1: Activate agents and collect decisions (Parallel where possible)
         tasks = []
         for agent in state.agents:
@@ -199,18 +205,34 @@ class SimulationRunner:
             for decision in results:
                 round_decisions.append(decision)
                 agent_map = state.agent_map
+                agent = agent_map[decision.agent_id]
+                
                 action = SimulationAction(
                     round_num=round_num,
                     timestamp=datetime.now().isoformat(),
                     platform=state.topic,
                     agent_id=decision.agent_id,
-                    agent_name=agent_map[decision.agent_id].name,
+                    agent_name=agent.name,
                     action_type=decision.action.value,
                     sentiment=decision.sentiment,
                     influence=decision.influence_delta,
                     target_id=decision.target_agent_id,
                 )
                 round_actions.append(action)
+
+                # Emit "live talk" as agent thought
+                try:
+                    from backend.app.api.stream import emit_agent_thought
+                    thought_msg = f"{agent.name} ({agent.role}): {decision.action.value} with sentiment {decision.sentiment:.2f}"
+                    if decision.target_agent_id is not None:
+                        target = agent_map.get(decision.target_agent_id)
+                        if target:
+                            thought_msg += f" (target: {target.name})"
+                    
+                    await emit_agent_thought(message=thought_msg, step="simulation")
+                    logger.info(f"Agent Action: {thought_msg}")
+                except (ImportError, ModuleNotFoundError):
+                    pass
 
         state.actions.extend(round_actions)
 

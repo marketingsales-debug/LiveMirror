@@ -438,5 +438,6 @@ async def learning_stats():
     stats = _learning.stats
     # Add aliases for frontend compatibility
     stats["calibration_offset"] = stats.get("confidence_offset", 0.0)
-    stats["avg_accuracy"] = stats.get("overall_accuracy", 0.86)
+    # Default to baseline accuracy if no validations yet
+    stats["avg_accuracy"] = stats.get("overall_accuracy") or 0.86
     return stats

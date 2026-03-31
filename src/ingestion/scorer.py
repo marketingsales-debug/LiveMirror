@@ -213,5 +213,6 @@ class SignalScorer:
                 timestamp = datetime.fromisoformat(timestamp)
             except ValueError:
                 return 24.0
-        delta = datetime.now() - timestamp
+        now = datetime.now(timestamp.tzinfo) if timestamp.tzinfo else datetime.now()
+        delta = now - timestamp
         return max(0.1, delta.total_seconds() / 3600)

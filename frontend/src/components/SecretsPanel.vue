@@ -48,10 +48,17 @@ const secrets = ref<SecretItem[]>([]);
 const loading = ref(false);
 const newSecret = ref<NewSecret>({ name: '', value: '' });
 
+const authHeaders = (): Record<string, string> => {
+  const key = import.meta.env.VITE_SELFMIRROR_API_KEY;
+  return key ? { 'X-API-Key': key } : {};
+};
+
 const fetchSecrets = async () => {
   loading.value = true;
   try {
-    const response = await fetch('/api/self-mirror/secrets');
+    const response = await fetch('/api/self-mirror/secrets', {
+      headers: authHeaders()
+    });
     const data: SecretListResponse = await response.json();
     secrets.value = data.secrets ?? [];
   } catch (err) {
@@ -67,7 +74,7 @@ const saveSecret = async () => {
   try {
     await fetch('/api/self-mirror/secrets', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify(newSecret.value)
     });
     newSecret.value = { name: '', value: '' };
@@ -83,7 +90,7 @@ const saveSecret = async () => {
 const deleteSecret = async (name: string) => {
   if (!confirm(`Are you sure you want to delete ${name}?`)) return;
   try {
-    await fetch(`/api/self-mirror/secrets/${name}`, { method: 'DELETE' });
+    await fetch(`/api/self-mirror/secrets/${name}`, { method: 'DELETE', headers: authHeaders() });
     await fetchSecrets();
   } catch (err) {
     console.error('Failed to delete secret', err);

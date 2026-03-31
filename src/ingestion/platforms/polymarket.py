@@ -23,7 +23,7 @@ class PolymarketIngester(BaseIngester):
     CLOB_URL = "https://clob.polymarket.com"
 
     def __init__(self):
-        self._client = httpx.AsyncClient(timeout=15.0)
+        self._client = httpx.AsyncClient(timeout=30.0)
 
     async def search(
         self,
@@ -81,17 +81,13 @@ class PolymarketIngester(BaseIngester):
 
     async def health_check(self) -> bool:
         try:
+            # Use Gamma API for health check (more reliable, smaller response)
             resp = await self._client.get(
-                f"{self.CLOB_URL}/markets",
-                params={"limit": 1, "active": "true", "withOrders": "false"},
-            )
-            if resp.status_code == 200:
-                return True
-            resp_gamma = await self._client.get(
                 f"{self.BASE_URL}/markets",
                 params={"limit": 1, "active": "true"},
+                timeout=10.0,
             )
-            return resp_gamma.status_code == 200
+            return resp.status_code == 200 and len(resp.json()) > 0
         except Exception:
             return False
 

@@ -179,7 +179,7 @@ class LiveMirrorPipeline:
 
     async def _emit_ingestion_progress(self, signals, query):
         try:
-            from backend.app.api.stream import emit_ingestion_progress
+            from app.api.stream import emit_ingestion_progress
             platform_counts = {}
             for s in signals:
                 p = s.platform.value
@@ -192,7 +192,7 @@ class LiveMirrorPipeline:
 
     async def _emit_analysis(self, result: AnalysisResult):
         try:
-            from backend.app.api.stream import emit_analysis_result
+            from app.api.stream import emit_analysis_result
             await emit_analysis_result(
                 signal_id=result.signal_id,
                 platform=result.platform,
@@ -207,7 +207,7 @@ class LiveMirrorPipeline:
 
     async def _emit_graph(self, stats):
         try:
-            from backend.app.api.stream import emit_graph_update
+            from app.api.stream import emit_graph_update
             await emit_graph_update(
                 entities_created=stats.get("entities_created", 0),
                 edges_created=stats.get("edges_created", 0),
@@ -219,7 +219,7 @@ class LiveMirrorPipeline:
 
     async def _emit_complete(self, query, scored):
         try:
-            from backend.app.api.stream import emit_ingestion_complete
+            from app.api.stream import emit_ingestion_complete
             top_score = scored[0].composite_score if scored else 0.0
             platforms = len({s.signal.platform for s in scored})
             await emit_ingestion_complete(query, len(scored), platforms, top_score)
@@ -229,13 +229,14 @@ class LiveMirrorPipeline:
     async def _emit_fusion(self, result, signal_id):
         """Emit multimodal fusion results to the frontend."""
         try:
-            from backend.app.api.stream import emit_fusion_result, emit_audience_prediction
+            from app.api.stream import emit_fusion_result, emit_audience_prediction
             # Emit consensus
+            modalities = [sp.segment_name for sp in result.segment_predictions] if result.segment_predictions else []
             await emit_fusion_result(
                 signal_id=signal_id,
                 direction=result.consensus_direction,
                 confidence=result.consensus_confidence,
-                modalities=list(result.embeddings.keys()),
+                modalities=modalities,
             )
             # Emit per-audience predictions
             for seg_pred in result.segment_predictions:

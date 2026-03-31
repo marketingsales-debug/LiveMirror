@@ -9,6 +9,8 @@ import PredictionHistory from '../components/PredictionHistory.vue';
 import LearningStatsPanel from '../components/LearningStatsPanel.vue';
 import MetricsDashboard from '../components/MetricsDashboard.vue';
 import SecretsPanel from '../components/SecretsPanel.vue';
+import LogsPanel from '../components/LogsPanel.vue';
+import ThoughtStream from '../components/ThoughtStream.vue';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 const apiUrl = (path: string) => `${API_BASE_URL}${path}`;
@@ -93,6 +95,8 @@ interface Fingerprint {
 
 const activeFingerprints = ref<Fingerprint[]>([]);
 const activePrediction = ref<PredictionReport | null>(null);
+const activeView = ref('overview');
+
 let es: EventSource | null = null;
 let reconnectTimer: number | null = null;
 let retryDelay = 1000;
@@ -114,7 +118,10 @@ const safeParse = <T>(raw: string, label: string): T | null => {
 
 const parseEvent = (event: Event, label: string) => {
   const msgEvent = event as MessageEvent;
-  return safeParse<Record<string, unknown>>(msgEvent.data, label);
+  const envelope = safeParse<Record<string, unknown>>(msgEvent.data, label);
+  if (!envelope) return null;
+  // The SSE stream wraps data in {type, data, timestamp} - extract inner data
+  return (envelope.data as Record<string, unknown>) ?? envelope;
 };
 
 const scheduleReconnect = () => {
@@ -248,7 +255,10 @@ const runIngestion = async () => {
     const res = await fetch(apiUrl('/api/ingest/start'), { 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic: topicInput.value, platforms: ['reddit', 'hackernews', 'polymarket', 'web_search'] })
+      body: JSON.stringify({ 
+        topic: topicInput.value, 
+        platforms: ['reddit', 'twitter', 'bluesky', 'youtube', 'tiktok', 'instagram', 'hackernews', 'polymarket', 'web', 'news', 'moltbook'] 
+      })
     });
     if (!res.ok) throw new Error('Ingestion start failed');
   } catch(err) { console.error('Failed to start ingestion', err); }
@@ -317,10 +327,10 @@ onUnmounted(() => {
         <div class="badge" v-else>LIVE STATUS</div>
       </div>
       <nav>
-        <a href="#" class="active">Overview</a>
-        <a href="#">Simulations</a>
-        <a href="#">Entities</a>
-        <a href="#">Alerts</a>
+        <a href="#" :class="{ active: activeView === 'overview' }" @click.prevent="activeView = 'overview'">Overview</a>
+        <a href="#" :class="{ active: activeView === 'simulations' }" @click.prevent="activeView = 'simulations'">Simulations</a>
+        <a href="#" :class="{ active: activeView === 'entities' }" @click.prevent="activeView = 'entities'">Entities</a>
+        <a href="#" :class="{ active: activeView === 'alerts' }" @click.prevent="activeView = 'alerts'">Alerts</a>
       </nav>
       <div class="actions">
         <input v-model="topicInput" placeholder="Enter topic..." class="topic-input" />
@@ -341,117 +351,200 @@ onUnmounted(() => {
         </div>
       </header>
       
-      <!-- Simulation Row -->
-      <div class="simulation-grid">
-        <section class="sim-panel glass-panel">
-          <NarrativeGalaxy />
-        </section>
-        <section class="sim-panel glass-panel">
+      <!-- Overview: Full Dashboard -->
+      <template v-if="activeView === 'overview'">
+        <div class="simulation-grid">
+          <section class="sim-panel glass-panel">
+            <NarrativeGalaxy />
+          </section>
+          <section class="sim-panel glass-panel">
+            <header>
+              <h3>Belief Evolution</h3>
+              <p>Agent sentiment trajectory convergence</p>
+            </header>
+            <div class="viz-wrapper">
+              <BeliefEvolutionChart :simulationId="activeSimulationId" :round="currentRound" />
+            </div>
+          </section>
+        </div>
+
+        <div class="fusion-grid">
+          <section class="fusion-panel glass-panel">
+            <header>
+              <h3>Multimodal Audience Consensus</h3>
+              <p>TRIBE v2 Segment-Specific Predictions</p>
+            </header>
+            <div class="audience-grid">
+              <div v-for="(stats, segment) in audienceConsensus" :key="segment" class="audience-card">
+                <div class="segment-name">{{ segment.replace(/_/g, ' ') }}</div>
+                <div class="segment-viz">
+                  <div class="direction-bar">
+                    <div class="bar-fill" :style="{ 
+                      width: Math.abs(stats.direction * 100) + '%',
+                      left: stats.direction >= 0 ? '50%' : 'auto',
+                      right: stats.direction < 0 ? '50%' : 'auto',
+                      background: stats.direction >= 0 ? 'var(--accent-color)' : '#ff4d4d'
+                    }"></div>
+                  </div>
+                </div>
+                <div class="segment-meta">
+                  <span>{{ stats.direction >= 0 ? 'BULL' : 'BEAR' }}</span>
+                  <span>{{ (stats.confidence * 100).toFixed(0) }}% CONF</span>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="fusion-panel glass-panel">
+            <header>
+              <h3>Temporal Dynamics</h3>
+              <p>Momentum, Velocity & Acceleration</p>
+            </header>
+            <div class="temporal-stats">
+              <div class="t-stat">
+                <label>MOMENTUM</label>
+                <div class="value">{{ temporalDynamics.momentum.toFixed(3) }}</div>
+              </div>
+              <div class="t-stat">
+                <label>VELOCITY</label>
+                <div class="value">{{ temporalDynamics.velocity.toFixed(3) }}</div>
+              </div>
+              <div class="t-stat">
+                <label>ACCELERATION</label>
+                <div class="value">{{ temporalDynamics.acceleration.toFixed(3) }}</div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="content-grid">
+          <section class="main-chart glass-panel">
+            <header>
+              <h3 :class="{'glow-alert': activeFingerprints.some(f => f.isTipping)}">Live Contagion Network</h3>
+              <p>Real-time cascade prediction</p>
+            </header>
+            <div class="chart-container">
+              <ContagionGraph />
+            </div>
+          </section>
+          <section class="side-panel glass-panel">
+            <header>
+              <h3>Narrative DNA</h3>
+            </header>
+            <div class="dna-list">
+              <div 
+                v-for="fp in activeFingerprints" 
+                :key="fp.id" 
+                class="dna-card"
+                :class="{ 'tipping': fp.isTipping }"
+              >
+                <div class="dna-header">
+                  <strong>{{ fp.name.replace(/_/g, ' ') }}</strong>
+                  <span class="platform-badge">{{ fp.platform }}</span>
+                </div>
+                <div class="dna-details">
+                  <span class="stage">{{ fp.stage.replace(/_/g, ' ') }}</span>
+                  <span class="sentiment" :style="{ color: fp.score >= 0 ? 'var(--accent-color)' : '#ff4d4d' }">
+                    Velocity: {{ fp.score.toFixed(2) }}
+                  </span>
+                </div>
+              </div>
+              <div v-if="activeFingerprints.length === 0" class="empty-state">
+                Waiting for analysis signals...
+              </div>
+            </div>
+          </section>
+          <section class="metrics-panel glass-panel">
+            <MetricsDashboard />
+          </section>
+          <section class="learning-panel glass-panel">
+            <LearningStatsPanel />
+          </section>
+          <section class="side-panel glass-panel">
+            <DebatePanel :report="activePrediction" />
+          </section>
+        </div>
+      </template>
+
+      <!-- Simulations View -->
+      <template v-if="activeView === 'simulations'">
+        <section class="glass-panel full-width-panel">
           <header>
-            <h3>Belief Evolution</h3>
-            <p>Agent sentiment trajectory convergence</p>
+            <h3>Simulation Engine Status</h3>
+            <p v-if="isSimulating">Current Round: {{ currentRound }} / {{ totalRounds }}</p>
+            <p v-else>No simulation running</p>
           </header>
-          <div class="viz-wrapper">
+          <div class="viz-wrapper large">
             <BeliefEvolutionChart :simulationId="activeSimulationId" :round="currentRound" />
           </div>
         </section>
-      </div>
+        <div class="grid-2">
+          <MetricsDashboard />
+          <LearningStatsPanel />
+        </div>
+      </template>
 
-      <!-- Fusion Analysis Row -->
-      <div class="fusion-grid">
-        <section class="fusion-panel glass-panel">
+      <!-- Entities View -->
+      <template v-if="activeView === 'entities'">
+        <section class="glass-panel full-width-panel galaxy-focus">
           <header>
-            <h3>Multimodal Audience Consensus</h3>
-            <p>TRIBE v2 Segment-Specific Predictions</p>
+            <h3>Knowledge Graph Narrative Galaxy</h3>
+            <p>3D projection of signal semantic proximity</p>
           </header>
-          <div class="audience-grid">
-            <div v-for="(stats, segment) in audienceConsensus" :key="segment" class="audience-card">
-              <div class="segment-name">{{ segment.replace(/_/g, ' ') }}</div>
-              <div class="segment-viz">
-                <div class="direction-bar">
-                  <div class="bar-fill" :style="{ 
-                    width: Math.abs(stats.direction * 100) + '%',
-                    left: stats.direction >= 0 ? '50%' : 'auto',
-                    right: stats.direction < 0 ? '50%' : 'auto',
-                    background: stats.direction >= 0 ? 'var(--accent-color)' : '#ff4d4d'
-                  }"></div>
-                </div>
-              </div>
-              <div class="segment-meta">
-                <span>{{ stats.direction >= 0 ? 'BULL' : 'BEAR' }}</span>
-                <span>{{ (stats.confidence * 100).toFixed(0) }}% CONF</span>
-              </div>
-            </div>
-          </div>
+          <NarrativeGalaxy />
         </section>
-        <section class="fusion-panel glass-panel">
+        <section class="glass-panel full-width-panel contagion-focus">
           <header>
-            <h3>Temporal Dynamics</h3>
-            <p>Momentum, Velocity & Acceleration</p>
+            <h3>Live Contagion Network</h3>
+            <p>Signal-to-signal propagation paths</p>
           </header>
-          <div class="temporal-stats">
-            <div class="t-stat">
-              <label>MOMENTUM</label>
-              <div class="value">{{ temporalDynamics.momentum.toFixed(3) }}</div>
-            </div>
-            <div class="t-stat">
-              <label>VELOCITY</label>
-              <div class="value">{{ temporalDynamics.velocity.toFixed(3) }}</div>
-            </div>
-            <div class="t-stat">
-              <label>ACCELERATION</label>
-              <div class="value">{{ temporalDynamics.acceleration.toFixed(3) }}</div>
-            </div>
-          </div>
+          <ContagionGraph />
         </section>
-      </div>
+      </template>
 
-      <div class="content-grid">
-        <section class="main-chart glass-panel">
+      <!-- Alerts View -->
+      <template v-if="activeView === 'alerts'">
+        <section class="glass-panel alerts-focus">
           <header>
-            <h3 :class="{'glow-alert': activeFingerprints.some(f => f.isTipping)}">Live Contagion Network</h3>
-            <p>Real-time cascade prediction</p>
+            <h3 :class="{'glow-alert': activeFingerprints.some(f => f.isTipping)}">Narrative Alerts & Tipping Points</h3>
+            <p>Active socio-emotional fingerprints exceeding velocity thresholds</p>
           </header>
-          <div class="chart-container">
-            <ContagionGraph />
-          </div>
-        </section>
-        <section class="side-panel glass-panel">
-          <header>
-            <h3>Narrative DNA</h3>
-          </header>
-          <div class="dna-list">
+          <div class="dna-list alerts-grid">
             <div 
               v-for="fp in activeFingerprints" 
               :key="fp.id" 
-              class="dna-card"
+              class="dna-card alert-card"
               :class="{ 'tipping': fp.isTipping }"
             >
-              <div class="dna-header">
+              <div class="alert-header">
+                <span class="status-indicator" :class="{ 'tipping': fp.isTipping }"></span>
                 <strong>{{ fp.name.replace(/_/g, ' ') }}</strong>
                 <span class="platform-badge">{{ fp.platform }}</span>
               </div>
-              <div class="dna-details">
-                <span class="stage">{{ fp.stage.replace(/_/g, ' ') }}</span>
-                <span class="sentiment" :style="{ color: fp.score >= 0 ? 'var(--accent-color)' : '#ff4d4d' }">
-                  Velocity: {{ fp.score.toFixed(2) }}
+              <p class="alert-desc">Narrative is in the <strong>{{ fp.stage.replace(/_/g, ' ') }}</strong> stage.</p>
+              <div class="alert-meta">
+                <span class="velocity-tag" :style="{ color: fp.score >= 0 ? 'var(--accent-color)' : '#ff4d4d' }">
+                  Velocity: {{ fp.score.toFixed(3) }}
                 </span>
+                <span v-if="fp.isTipping" class="warning-badge">CRITICAL</span>
               </div>
             </div>
-            <div v-if="activeFingerprints.length === 0" class="empty-state">
-              Waiting for analysis signals...
-            </div>
+          </div>
+          <div v-if="activeFingerprints.length === 0" class="empty-state">
+            No active alerts detected at this moment.
           </div>
         </section>
         <section class="metrics-panel glass-panel">
-          <MetricsDashboard />
+           <h3>System Performance Monitor</h3>
+           <MetricsDashboard />
         </section>
-        <section class="learning-panel glass-panel">
-          <LearningStatsPanel />
-        </section>
-        <section class="side-panel glass-panel">
-          <DebatePanel :report="activePrediction" />
-        </section>
+      </template>
+
+      <div class="history-row glass-panel logs-row">
+        <div class="logs-grid">
+          <LogsPanel />
+          <div class="vertical-divider"></div>
+          <ThoughtStream />
+        </div>
       </div>
       <div class="history-row glass-panel">
         <SecretsPanel />
@@ -665,6 +758,10 @@ nav a:hover, nav a.active {
   margin-top: 24px;
 }
 
+.logs-row {
+  padding: 20px 24px;
+}
+
 .main-chart {
   display: flex;
   flex-direction: column;
@@ -846,5 +943,93 @@ nav a:hover, nav a.active {
   font-size: 1.2rem;
   color: var(--accent-color);
   font-weight: 700;
+}
+
+/* New View Layouts */
+.full-width-panel {
+  padding: 24px;
+  width: 100%;
+}
+
+.viz-wrapper.large {
+  min-height: 500px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.galaxy-focus {
+  height: 600px;
+}
+
+.contagion-focus {
+  height: 500px;
+}
+
+.alerts-focus {
+  padding: 24px;
+  min-height: 400px;
+}
+
+.alerts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.alert-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-color);
+}
+
+.status-indicator.tipping {
+  background: #ff4d4d;
+  box-shadow: 0 0 8px #ff4d4d;
+}
+
+.alert-desc {
+  font-size: 0.85rem;
+  color: #ccc;
+  margin: 0;
+}
+
+.alert-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.velocity-tag {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.warning-badge {
+  background: #ff4d4d;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
 }
 </style>

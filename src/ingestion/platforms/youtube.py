@@ -141,6 +141,9 @@ class YouTubeIngester(BaseIngester):
             "https://vid.puffyan.us",
             "https://invidious.snopyta.org",
             "https://invidious.kavin.rocks",
+            "https://inv.riverside.rocks",
+            "https://invidious.namazso.eu",
+            "https://invidious.silkky.cloud",
         ]
 
         for base_url in instances:

@@ -7,13 +7,18 @@ const files = ref<string[]>([]);
 const currentFile = ref<string | null>(null);
 const agentLoading = ref(false);
 
+const authHeaders = (): Record<string, string> => {
+  const key = import.meta.env.VITE_SELFMIRROR_API_KEY;
+  return key ? { 'X-API-Key': key } : {};
+};
+
 const startGoal = async () => {
   if (!goal.value) return;
   agentLoading.value = true;
   try {
     const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/self-mirror/goal`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({
         goal: goal.value,
         context_files: currentFile.value ? [currentFile.value] : []
@@ -30,7 +35,9 @@ const startGoal = async () => {
 
 const fetchFiles = async () => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/self-mirror/files`);
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/self-mirror/files`, {
+      headers: authHeaders()
+    });
     const data = await res.json();
     files.value = data.files;
   } catch (err) {

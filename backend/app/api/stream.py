@@ -33,7 +33,8 @@ class EventBus:
 
     def subscribe(self) -> asyncio.Queue:
         """Create a new subscriber queue."""
-        queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+        # Increased from 100 to 500 to handle burst of analysis events
+        queue: asyncio.Queue = asyncio.Queue(maxsize=500)
         self._subscribers.append(queue)
         return queue
 
@@ -88,13 +89,31 @@ def _get_event_bus():
     global _redis_bus
     if _redis_bus is not None:
         return _redis_bus
+
+    # Check if this file is already loaded under a different name
+    # e.g. "app.api.stream" vs "backend.app.api.stream"
+    import sys
+    import os
+    this_file = os.path.abspath(__file__).rstrip("c")
+    for name, module in list(sys.modules.items()):
+        if (
+            module
+            and hasattr(module, "__file__")
+            and module.__file__
+            and os.path.abspath(module.__file__).rstrip("c") == this_file
+        ):
+            if hasattr(module, "event_bus") and module is not sys.modules[__name__]:
+                _redis_bus = module.event_bus
+                return _redis_bus
+
     try:
         from src.streaming.redis_bus import RedisEventBus
         _redis_bus = RedisEventBus()
         # Connection happens async in lifespan — for now return it
         return _redis_bus
-    except ImportError:
-        return EventBus()
+    except (ImportError, ModuleNotFoundError):
+        _redis_bus = EventBus()
+        return _redis_bus
 
 event_bus = _get_event_bus()
 
@@ -178,6 +197,20 @@ async def stream_events():
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.get("/debug")
+async def debug_event_bus():
+    """Debug endpoint to check event bus state."""
+    import sys
+    return {
+        "event_bus_type": type(event_bus).__name__,
+        "event_bus_id": id(event_bus),
+        "subscribers": len(event_bus._subscribers),
+        "module_name": __name__,
+        "sys_path": sys.path,
+        "sys_modules_stream": [k for k in sys.modules if "stream" in k],
+    }
 
 
 # Helper functions for other modules to publish events

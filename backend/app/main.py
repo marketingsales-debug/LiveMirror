@@ -4,6 +4,7 @@ FastAPI server for the real-time prediction engine.
 """
 
 import os
+from datetime import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,7 +17,10 @@ from .api.predict import router as predict_router
 from .api.simulate import router as simulate_router
 from .api.stream import router as stream_router
 from .api.metrics import router as metrics_router
+from .api.logs import router as logs_router, install_log_handler
 from backend.self_mirror.main import router as self_mirror_router
+
+install_log_handler()
 
 
 @asynccontextmanager
@@ -69,7 +73,12 @@ app.add_middleware(
 # Root health check
 @app.get("/health")
 async def root_health():
-    return {"status": "ok"}
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
+# Prevent favicon loop
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse(os.path.join(frontend_path, "favicon.ico")) if frontend_path and os.path.exists(os.path.join(frontend_path, "favicon.ico")) else JSONResponse(status_code=404, content={})
 
 # API Routers
 app.include_router(health_router, prefix="/api", tags=["health"])
@@ -77,7 +86,9 @@ app.include_router(ingest_router, prefix="/api/ingest", tags=["ingestion"])
 app.include_router(predict_router, prefix="/api/predict", tags=["prediction"])
 app.include_router(simulate_router, prefix="/api/simulate", tags=["simulation"])
 app.include_router(stream_router, prefix="/api/stream", tags=["real-time"])
+app.include_router(stream_router, prefix="/api", tags=["real-time"])  # Alias for /api/events
 app.include_router(metrics_router, prefix="/api/metrics", tags=["monitoring"])
+app.include_router(logs_router, prefix="/api/logs", tags=["logs"])
 app.include_router(self_mirror_router, prefix="/api/self-mirror", tags=["autonomous"])
 
 # --- Robust Frontend Serving (SPA Pattern) ---

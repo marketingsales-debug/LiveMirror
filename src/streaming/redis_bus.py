@@ -71,7 +71,8 @@ class RedisEventBus:
 
     def subscribe(self) -> asyncio.Queue:
         """Create a new subscriber queue."""
-        queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+        # Increased from 100 to 500 to handle burst of analysis events
+        queue: asyncio.Queue = asyncio.Queue(maxsize=500)
         self._subscribers.append(queue)
         return queue
 
