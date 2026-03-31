@@ -18,10 +18,16 @@ class BlueskyIngester(BaseIngester):
     """Ingest data from Bluesky via AT Protocol."""
 
     platform = Platform.BLUESKY
-    BASE_URL = "https://public.api.bsky.app"
+    BASE_URL = "https://api.bsky.app"
 
     def __init__(self):
-        self._client = httpx.AsyncClient(timeout=30.0)
+        self._client = httpx.AsyncClient(
+            timeout=30.0,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            }
+        )
 
     async def search(
         self,
@@ -30,6 +36,11 @@ class BlueskyIngester(BaseIngester):
         max_results: int = 50,
     ) -> List[RawSignal]:
         since = since or self.default_since()
+        # Ensure since is offset-aware
+        if since.tzinfo is None:
+            from datetime import timezone
+            since = since.replace(tzinfo=timezone.utc)
+            
         signals = []
 
         try:
