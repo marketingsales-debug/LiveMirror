@@ -143,7 +143,7 @@ class SimulationRunner:
                     return state
 
                 state.current_round = round_num
-                summary = self._execute_round(state, round_num)
+                summary = await self._execute_round(state, round_num)
                 state.round_summaries.append(summary)
 
                 # Update running topic sentiment
